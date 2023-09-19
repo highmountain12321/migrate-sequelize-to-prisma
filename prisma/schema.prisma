@@ -1,11 +1,42 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
+  output   = "./generated/client"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+model Activity {
+  id         Int      @id @default(autoincrement())
+  name       String?
+  createdAt  DateTime @default(now())
+  userId     Int?
+  contactId  Int?
+  typeId     Int?
+  User       User?    @relation(fields: [userId], references: [id])
+  Contact    Contact? @relation(fields: [contactId], references: [id])
+  Type       ActivityType? @relation(fields: [typeId], references: [id])
+  @@index([userId], name: "userId")
+  @@index([contactId], name: "contactId")
+  @@index([typeId], name: "typeId")
+}
+
+model User {
+  id       Int      @id @default(autoincrement())
+  // Add other user fields as needed
+  activities Activity[]
+}
+
+model Contact {
+  id       Int      @id @default(autoincrement())
+  // Add other contact fields as needed
+  activities Activity[]
+}
+
+model ActivityType {
+  id       Int      @id @default(autoincrement())
+  // Add other activity type fields as needed
+  activities Activity[]
 }
