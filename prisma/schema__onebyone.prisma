@@ -33,3 +33,94 @@ model Appointment {
 }
 
 // If you have any other models or relationships, define them below.
+// schema.prisma
+
+model AppEmail {
+  id          Int      @id @default(autoincrement())
+  email       String
+  provider    String
+  providerId  String
+  isActive    Boolean @default(true)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}
+
+// schema.prisma
+
+model AppPhone {
+  id               Int      @id @default(autoincrement())
+  phone            String
+  provider         String
+  providerPhoneId  String
+  isActive         Boolean @default(true)
+
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+}
+
+model AutoActionType {
+  id       Int     @id @default(autoincrement())
+  name     String?
+  isActive Boolean @default(true)
+}
+
+model AutoAction {
+  id          Int     @id @default(autoincrement())
+  name        String?
+  fn          String?
+  description String?
+  isActive    Boolean @default(true)
+}
+
+model AutoAutomationLog {
+  id      Int     @id @default(autoincrement())
+  log     String?
+  isError Boolean
+
+  createdAt DateTime @default(now())
+}
+
+model AutoAutomation {
+  id          Int      @id @default(autoincrement())
+  name        String?
+  twilioFlowId String?
+  targetUrl   String?
+  phoneNumber String?
+  isPrivate   Boolean  @default(true)
+  isActive    Boolean  @default(true)
+  lastRunDate DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AutoEventTriggerType {
+  id       Int     @id @default(autoincrement())
+  name     String?
+  isActive Boolean @default(true)
+}
+
+model AutoEventTrigger {
+  id          Int     @id @default(autoincrement())
+  name        String?
+  description String?
+  isActive    Boolean @default(true)
+}
+
+model ContactEventType {
+  id           Int     @id @default(autoincrement())
+  name         String?
+  description  String?
+  isActive     Boolean @default(true)
+  isActionable Boolean @default(true)
+}
+
+model ContactEvent {
+  id         Int      @id @default(autoincrement())
+  system     Boolean
+  processDate DateTime?
+  test       Boolean
+
+  createdAt  DateTime @default(now())
+}
