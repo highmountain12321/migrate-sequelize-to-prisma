@@ -428,3 +428,39 @@ model EquipmentResidentialModule {
   
   @@map("equipment_residential_module")
 }
+
+model AppEventCategory {
+  id          Int     @id @default(autoincrement())
+  name        String?
+  description String?
+  slug        String?
+  isActive    Boolean @default(true)
+  
+  @@map("app_event_category")
+}
+model AppEventLevel {
+  id        Int     @id @default(autoincrement())
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+  name      String?
+  slug      String?
+
+  @@map("app_event_level")
+}
+model AppEventType {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  slug        String
+  isActive    Boolean @default(true)
+
+  @@map("app_event_type")
+}
+model AppEvent {
+  id          Int     @id @default(autoincrement())
+  isDismissed Boolean
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  @@map("app_event")
+}
