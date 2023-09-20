@@ -1,67 +1,68 @@
-const { models } = require("../../../sequelize");
-
-exports.createComment = async function (req, res, next) {
-    const { user, role } = req.token;
-    const closingFormId = req.params.closingFormId;
-    const comment = req.body.comment;
-    const type = req.body.typeId;
-    const newComment = await models.closingform_comment.create({
-        userId: user,
-        comment: comment,
-        typeId: type
-    });
-    const closingForm = await models.closing_form.findByPk(closingFormId);
-    console.log(closingForm);
-    await closingForm.addClosingform_comments(newComment);
-    await closingForm.save();
-    const comments = await closingForm.getClosingform_comments({
-        include: [{
-            model: models.user,
-            as: 'user',
-            attributes: ['firstName', 'lastName'],
-        }],
-        order: [
-            ['id', 'desc']
-        ]
-    });
-    res.status(200).json(comments);
-}
-
-exports.listComment = async function (req, res, next) {
-    const { user, role } = req.token;
-    const closingFormId = req.params.closingFormId;
-    const closingForm = await models.closing_form.findByPk(closingFormId);
-    const comment = await closingForm.getClosingform_comments({
-        include: [{
-            model: models.user,
-            as: 'user',
-            attributes: ['firstName', 'lastName'],
-        }],
-        order: [
-            ['id', 'desc']
-        ]
-    });
-    res.status(200).json(comment);
-}
-exports.update = async function (req, res, next) {
-
-}
-exports.destroy = async function (req, res, next) {
+exports.createComment = async function(req, res, next) {
     try {
-        const id = req.params.id;
-        const obj = await models.closingform_comment.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    } catch (e) {
-        console.log(e);
-        next(e);
+        const { user, role } = req.token;
+        const closingFormId = Number(req.params.closingFormId);
+        const { comment, typeId: type } = req.body;
+
+        const newComment = await prisma.closingformComment.create({
+            data: {
+                userId: user,
+                comment: comment,
+                typeId: type,
+                closingForm: {
+                    connect: { id: closingFormId }
+                }
+            }
+        });
+
+        const comments = await prisma.closingformComment.findMany({
+            where: { closingFormId: closingFormId },
+            include: {
+                user: {
+                    select: { firstName: true, lastName: true }
+                }
+            },
+            orderBy: { id: 'desc' }
+        });
+
+        res.status(200).json(comments);
+    } catch (error) {
+        console.log(error);
+        next(error);
     }
 }
-// exports.list = async function (req, res) {
-//     const data = await models.closingform_comment.findAndCountAll({
-//         where: {
-//             isActive: true
-//         }
-//     });
-//     res.json(data);
-// }
+
+exports.listComment = async function(req, res, next) {
+    try {
+        const { user, role } = req.token;
+        const closingFormId = Number(req.params.closingFormId);
+
+        const comments = await prisma.closingformComment.findMany({
+            where: { closingFormId: closingFormId },
+            include: {
+                user: {
+                    select: { firstName: true, lastName: true }
+                }
+            },
+            orderBy: { id: 'desc' }
+        });
+
+        res.status(200).json(comments);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+// Update function is empty, so I'm skipping it for now
+
+exports.destroy = async function(req, res, next) {
+    try {
+        const id = Number(req.params.id);
+        const response = await prisma.closingformComment.delete({ where: { id } });
+        res.json(response);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}

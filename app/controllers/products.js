@@ -1,47 +1,61 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
-
-const _ = require('lodash');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 exports.list = async function (req, res, next) {
-    const obj_array = await models.products.findAll();
-    res.json(obj_array);
-}
-exports.show = async function (req, res, next) {
-    const id = req.params.id;
-    const obj_array = await models.products.findByPk(id);
-    res.json(obj_array);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.id;
+    const objArray = await prisma.product.findMany();
+    res.json(objArray);
+};
 
-    const body  = req.body;
-    await models.products.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newProposal = await models.products.findByPk(id);
+exports.show = async function (req, res, next) {
+    const id = parseInt(req.params.id);
+    const objArray = await prisma.product.findUnique({
+        where: {
+            id: id,
+        },
+    });
+    res.json(objArray);
+};
+
+exports.update = async function (req, res, next) {
+    const id = parseInt(req.params.id);
+    const body = req.body;
+    await prisma.product.update({
+        where: {
+            id: id,
+        },
+        data: body,
+    });
+    const newProposal = await prisma.product.findUnique({
+        where: {
+            id: id,
+        },
+    });
     res.status(201).json(newProposal);
-}
+};
+
 exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
+    const { user, role } = req.token;
     const newProposal = req.body;
     newProposal.userId = user;
-    const newProposalModal = await models.products.create(newProposal);
-    return res.json(newProposalModal);
 
-}
-exports.destroy = async function (req, res,next) {
+    const newProposalModal = await prisma.product.create({
+        data: newProposal,
+    });
+
+    return res.json(newProposalModal);
+};
+
+exports.destroy = async function (req, res, next) {
     try {
-        const id = req.params.id;
-        const obj = await models.products.findByPk(id)
-        const response = await obj.destroy()
+        const id = parseInt(req.params.id);
+        const response = await prisma.product.delete({
+            where: {
+                id: id,
+            },
+        });
         res.json(response);
-    }catch(e){
+    } catch (e) {
         console.log(e);
         next(e);
     }
-}
+};

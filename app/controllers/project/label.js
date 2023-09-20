@@ -1,48 +1,61 @@
-const { wrap: async } = require('co');
-const { models } = require('../../../sequelize');
-
-const _ = require('lodash');
+const prisma = require('../../../prisma/client');
 
 exports.list = async function (req, res, next) {
-    const obj_array = await models.project_label.findAll();
-    res.json(obj_array);
-}
-exports.show = async function (req, res, next) {
-    const id = req.params.id;
-    const obj_array = await models.project_label.findByPk(id);
-    res.json(obj_array);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.id;
-
-    const body  = req.body;
-    await models.project_label.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newProposal = await models.project_label.findByPk(id);
-    res.status(201).json(newProposal);
-}
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
-    const newProposal = req.body;
-    newProposal.userId = user;
-
-    const newProposalModal = await models.project_label.create(newProposal);
-    return res.json(newProposalModal);
-
-}
-exports.destroy = async function (req, res,next) {
     try {
-        const id = req.params.projectBoardId;
-        const obj = await models.project_label.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
-        console.log(e);
-        next(e);
+        const labels = await prisma.projectLabel.findMany();
+        res.json(labels);
+    } catch (error) {
+        next(error);
     }
-}
+};
+
+exports.show = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.id);
+        const label = await prisma.projectLabel.findUnique({ where: { id } });
+        if (label) {
+            res.json(label);
+        } else {
+            res.status(404).send('Label not found');
+        }
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.update = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.id);
+        const updatedLabel = await prisma.projectLabel.update({
+            where: { id },
+            data: req.body
+        });
+        res.status(201).json(updatedLabel);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.create = async function (req, res, next) {
+    try {
+        const newLabel = {
+            ...req.body,
+            userId: req.token.user
+        };
+        const createdLabel = await prisma.projectLabel.create({ data: newLabel });
+        res.json(createdLabel);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.destroy = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.projectBoardId);
+        await prisma.projectLabel.delete({ where: { id } });
+        res.json({ success: true });
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+};

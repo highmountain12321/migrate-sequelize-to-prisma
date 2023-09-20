@@ -1,47 +1,75 @@
-const { wrap: async } = require('co');
-const { models } = require('../../../../sequelize');
-
-const _ = require('lodash');
+const { prisma } = require("../../../../prisma/client");
 
 exports.list = async function (req, res, next) {
-    const obj_array = await models.equipment_residential_inverter.findAll();
-    res.json(obj_array);
+    try {
+        const data = await prisma.equipment_residential_inverter.findMany();
+        res.json(data);
+    } catch (error) {
+        console.log(error);
+        res.status(500).send("An error occurred while fetching data.");
+    }
 }
+
 exports.show = async function (req, res, next) {
-    const id = req.params.inverterId;
-    const obj_array = await models.equipment_residential_inverter.findByPk(id);
-    res.json(obj_array);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.inverterId;
-    const body  = req.body;
-    await models.equipment_residential_inverter.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newProposal = await models.equipment_residential_inverter.findByPk(id);
-    res.status(201).json(newProposal);
-}
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
-
-    const newProposal = req.body;
-    newProposal.userId = user;
-
-    const newProposalModal = await models.equipment_residential_inverter.create(newProposal);
-    return res.json(newProposalModal);
-
-}
-exports.destroy = async function (req, res,next) {
     try {
         const id = req.params.inverterId;
-        const obj = await models.equipment_residential_inverter.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
+        const data = await prisma.equipment_residential_inverter.findUnique({
+            where: {
+                id: Number(id)
+            }
+        });
+        res.json(data);
+    } catch (error) {
+        console.log(error);
+        res.status(500).send("An error occurred while fetching the data.");
+    }
+}
+
+exports.update = async function (req, res, next) {
+    try {
+        const id = req.params.inverterId;
+        
+        const updatedInverter = await prisma.equipment_residential_inverter.update({
+            where: { id: Number(id) },
+            data: req.body
+        });
+        
+        res.status(201).json(updatedInverter);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+exports.create = async function (req, res, next) {
+    try {
+        const { user } = req.token;
+        const newInverter = {
+            ...req.body,
+            userId: user
+        };
+
+        const createdInverter = await prisma.equipment_residential_inverter.create({
+            data: newInverter
+        });
+
+        res.json(createdInverter);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+exports.destroy = async function (req, res, next) {
+    try {
+        const id = req.params.inverterId;
+        
+        const deletedInverter = await prisma.equipment_residential_inverter.delete({
+            where: { id: Number(id) }
+        });
+
+        res.json(deletedInverter);
+    } catch (e) {
         console.log(e);
         next(e);
     }

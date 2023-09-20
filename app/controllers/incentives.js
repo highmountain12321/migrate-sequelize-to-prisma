@@ -1,5 +1,5 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const { Services } = require('../services');
 
 const _ = require('lodash');
@@ -7,50 +7,60 @@ const _ = require('lodash');
 exports.list = async function (req, res, next) {
     try {
         const state = req.query.state;
-        const list = await Services.SolarIncentives.getIncentives(state)
+        const list = await Services.SolarIncentives.getIncentives(state);
         res.json(list);
-    }catch(e){
+    } catch (e) {
         console.error(e);
         next(e);
     }
 }
+
 exports.show = async function (req, res, next) {
-    const id = req.params.id;
-    const obj_array = await models.incentive.findByPk(id);
+    const id = parseInt(req.params.id, 10);
+    const obj_array = await prisma.incentive.findUnique({ where: { id: id } });
     res.json(obj_array);
 }
+
 exports.update = async function (req, res, next) {
-    const id = req.params.id;
+    const id = parseInt(req.params.id, 10);
+    const body = req.body;
 
-    const body  = req.body;
-    await models.incentive.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newProposal = await models.incentive.findByPk(id);
-    res.status(201).json(newProposal);
-}
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
-
-    const newProposal = req.body;
-    newProposal.userId = user;
-    newProposal.submittedBy =user;
-    const newProposalModal = await models.incentive.create(newProposal);
-    return res.json(newProposalModal);
-
-}
-exports.destroy = async function (req, res,next) {
     try {
-        const id = req.params.id;
-        const obj = await models.incentive.findByPk(id)
-        const response = await obj.destroy()
+        const updatedIncentive = await prisma.incentive.update({
+            where: { id: id },
+            data: body
+        });
+        res.status(201).json(updatedIncentive);
+    } catch (error) {
+        next(error);
+    }
+}
+
+exports.create = async function (req, res, next) {
+    const { user, role } = req.token;
+
+    const newProposal = {
+        ...req.body,
+        userId: user,
+        submittedBy: user
+    };
+
+    try {
+        const newProposalModal = await prisma.incentive.create({ data: newProposal });
+        res.json(newProposalModal);
+    } catch (error) {
+        next(error);
+    }
+}
+
+exports.destroy = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const response = await prisma.incentive.delete({ where: { id: id } });
         res.json(response);
-    }catch(e){
+    } catch (e) {
         console.log(e);
         next(e);
     }
 }
+

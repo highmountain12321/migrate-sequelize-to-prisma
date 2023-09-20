@@ -1,59 +1,83 @@
-const { wrap: async } = require('co');
-const { models } = require('../../../sequelize');
+const prisma = require('./path_to_your_shared_module/prismaClient');
 
-const _ = require('lodash');
-
-exports.list = async function (req, res, next) {
-        const {autoTriggerId} = req.params;
-        if(autoTriggerId){
-            const eventTriggerModel = await models.auto_event_trigger.findByPk(autoTriggerId);
-            const actionsModelArray = await eventTriggerModel.getActions();
+// List
+exports.list = async function(req, res, next) {
+    try {
+        const { autoTriggerId } = req.params;
+        if (autoTriggerId) {
+            const eventTriggerModel = await prisma.autoEventTrigger.findUnique({ where: { id: Number(autoTriggerId) } });
+            // Assuming there's a relation setup between autoEventTrigger and Actions
+            const actionsModelArray = await prisma.action.findMany({ where: { eventTriggerId: Number(autoTriggerId) } });
             res.json(actionsModelArray);
             return;
         }
-    const objArray = await models.auto_event_trigger.findAll();
-    res.json(objArray);
+        const objArray = await prisma.autoEventTrigger.findMany();
+        res.json(objArray);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
 }
-exports.listTypes = async function (req, res, next) {
-    const objArray = await models.auto_event_trigger_type.findAll();
-    res.json(objArray);
-}
-exports.show = async function (req, res, next) {
-    const id = req.params.eventTriggerId;
-    const obj = await models.auto_event_trigger.findByPk(id);
-    res.json(obj);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.eventTriggerId;
-    const body  = req.body;
-    await models.automation.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const obj = await models.auto_event_trigger.findByPk(id);
-    res.status(201).json(obj);
-}
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
 
-    const automation = req.body;
-    automation.userId = user;
-
-    const newModel = await models.automation.create(automation);
-    return res.json(newModel);
-
-}
-exports.destroy = async function (req, res,next) {
+// List Types
+exports.listTypes = async function(req, res, next) {
     try {
-        const id = req.params.eventTriggerId;
-        const obj = await models.auto_event_trigger.findByPk(id)
-        const response = await obj.destroy()
+        const objArray = await prisma.autoEventTriggerType.findMany();
+        res.json(objArray);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+// Show
+exports.show = async function(req, res, next) {
+    try {
+        const id = Number(req.params.eventTriggerId);
+        const obj = await prisma.autoEventTrigger.findUnique({ where: { id } });
+        res.json(obj);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+// Update
+exports.update = async function(req, res, next) {
+    try {
+        const id = Number(req.params.eventTriggerId);
+        const body = req.body;
+        await prisma.automation.update({ where: { id }, data: body });
+        const obj = await prisma.autoEventTrigger.findUnique({ where: { id } });
+        res.status(201).json(obj);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+// Create
+exports.create = async function(req, res, next) {
+    try {
+        const { user, role } = req.token;
+        const automation = req.body;
+        automation.userId = user;
+        const newModel = await prisma.automation.create({ data: automation });
+        return res.json(newModel);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+// Destroy
+exports.destroy = async function(req, res, next) {
+    try {
+        const id = Number(req.params.eventTriggerId);
+        const response = await prisma.autoEventTrigger.delete({ where: { id } });
         res.json(response);
-    }catch(e){
-        console.log(e);
-        next(e);
+    } catch (error) {
+        console.log(error);
+        next(error);
     }
 }

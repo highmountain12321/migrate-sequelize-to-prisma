@@ -672,7 +672,7 @@ model Contact {
   state               String?    @db.VarChar(255)
   postalCode          String?    @db.VarChar(255)
   interests           String?    @db.LongText
-  isSpanishSpeaker    Boolean    @db.TinyInt(1) @default(0)
+  isSpanishSpeaker    Boolean    @db.TinyInt(1) @default(false)
   primaryPhone        String?    @db.VarChar(255)
   secondaryPhone      String?    @db.VarChar(255)
   email               String?    @db.VarChar(255)
@@ -684,7 +684,7 @@ model Contact {
   opportunityDate     DateTime?  @db.DateTime
   sitDate             DateTime?  @db.DateTime
   dropDate            DateTime?  @db.DateTime
-  isActive            Boolean    @db.TinyInt(1) @default(1)
+  isActive            Boolean    @db.TinyInt(1) @default(false)
   organizationId      Int?       @db.Int(11)
   createdAt           DateTime   @default(now()) @db.DateTime
   updatedAt           DateTime   @updatedAt @db.DateTime
@@ -734,7 +734,7 @@ model ContactsCopy {
   state               String?    @db.VarChar(255)
   postalCode          String?    @db.VarChar(255)
   interests           String?    @db.LongText
-  isSpanishSpeaker    Boolean    @db.TinyInt(1) @default(0)
+  isSpanishSpeaker    Boolean    @db.TinyInt(1) @default(false)
   primaryPhone        String?    @db.VarChar(255)
   secondaryPhone      String?    @db.VarChar(255)
   email               String?    @db.VarChar(255)
@@ -746,7 +746,7 @@ model ContactsCopy {
   opportunityDate     DateTime?  @db.DateTime
   sitDate             DateTime?  @db.DateTime
   dropDate            DateTime?  @db.DateTime
-  isActive            Boolean    @db.TinyInt(1) @default(1)
+  isActive            Boolean    @db.TinyInt(1) @default(false)
   organizationId      Int?       @db.Int(11)
   createdAt           DateTime   @default(now()) @db.DateTime
   updatedAt           DateTime   @updatedAt @db.DateTime
@@ -1775,7 +1775,7 @@ model ServiceArea {
   id           Int       @id @default(autoincrement())
   isPrimary    Boolean   @default(false)
   isActive     Boolean   @default(true)
-  coordinates  Point?
+  coordinates  String   @db.VarChar(255) //This is a placeholder for the POINT type. Use raw SQL for operations.
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @default(now())
   stateId      Int?
@@ -1910,6 +1910,17 @@ model UserGroupContact {
   userGroup  UserGroup @relation(fields: [userGroupId], references: [id])
   @@id([contactId, userGroupId])
 }
+
+model CommercialContact {
+  id          Int      @id @default(autoincrement())
+  firstName   String
+  lastName    String
+  email       String   @unique
+  phoneNumber String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 
 // UserGroupManager
 model UserGroupManager {
@@ -2047,7 +2058,7 @@ model Zone {
   metadata    Json?
   isPrimary   Boolean?
   isActive    Boolean?
-  coordinates Point?
+  coordinates String   @db.VarChar(255) //This is a placeholder for the POINT type. Use raw SQL for operations.
   partnerId   Int?
   lenderId    Int?
   partner     Partner?  @relation(fields: [partnerId], references: [id])

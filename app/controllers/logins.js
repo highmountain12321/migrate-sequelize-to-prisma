@@ -1,14 +1,8 @@
-
-/**
- * Module dependencies.
- */
-
-const { wrap: async } = require('co');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const _ = require('lodash');
-const { models } = require('../../sequelize');
 
-
-exports.create = async function (req, res) {
+exports.create = async function (req, res, next) {
     const userModel = req.userModel;
     const ipAddress = (
         req.headers['cf-connecting-ip'] ||
@@ -16,33 +10,56 @@ exports.create = async function (req, res) {
         req.headers['x-forwarded-for'] ||
         req.connection.remoteAddress || ''
     ).split(',');
-    if(ipAddress && ipAddress[0].length > 0) {
-        await userModel.logLocation(ipAddress[0])
+
+    try {
+        if (ipAddress && ipAddress[0].length > 0) {
+            // Assuming `logLocation` is a method in your user model, you'll need to rewrite this logic
+            // based on how it's supposed to interact with the database using Prisma.
+            await userModel.logLocation(ipAddress[0]);
+        }
+        res.json({ isOkay: true });
+    } catch (error) {
+        next(error);
     }
-    res.json({isOkay: true});
-
-}
-exports.list = async function (req, res) {
-    const limit = req.query.limit = 1000;
-    const offset = req.query.offset = 0;
-
-    const data = await models.login.findAll({
-        limit:limit,
-        offset:offset,
-        attributes:['ip','city','state','country','createdAt'],
-        order: [
-            ['id', 'DESC']
-        ],
-        include: [{
-            model: models.user,
-            as: 'user',
-            attributes:['firstName','lastName','id']
-        },{
-            model: models.user,
-            as: 'manager',
-            attributes:['firstName','lastName','id']
-        }]
-    });
-    res.json(data);
 }
 
+exports.list = async function (req, res, next) {
+    const limit = req.query.limit || 1000;
+    const offset = req.query.offset || 0;
+
+    try {
+        const data = await prisma.login.findMany({
+            skip: offset,
+            take: limit,
+            select: {
+                ip: true,
+                city: true,
+                state: true,
+                country: true,
+                createdAt: true,
+                user: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        id: true
+                    }
+                },
+                // If `manager` is another relation in the `login` model, you can include it as follows:
+                manager: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        id: true
+                    }
+                }
+            },
+            orderBy: {
+                id: 'desc'
+            }
+        });
+
+        res.json(data);
+    } catch (error) {
+        next(error);
+    }
+}

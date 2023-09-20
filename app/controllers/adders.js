@@ -1,48 +1,64 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
-
-const _ = require('lodash');
+const prisma = require('../../prisma/client');
 
 exports.list = async function (req, res, next) {
-    const obj_array = await models.adder.findAll();
-    res.json(obj_array);
-}
-exports.show = async function (req, res, next) {
-    const id = req.params.id;
-    const obj_array = await models.adder.findByPk(id);
-    res.json(obj_array);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.id;
-
-    const body  = req.body;
-    await models.adder.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newProposal = await models.adder.findByPk(id);
-    res.status(201).json(newProposal);
-}
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
-    const newProposal = req.body;
-    newProposal.userId = user;
-
-    const newProposalModal = await models.adder.create(newProposal);
-    return res.json(newProposalModal);
-
-}
-exports.destroy = async function (req, res,next) {
     try {
-        const id = req.params.adderId;
-        const obj = await models.adder.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
-        console.log(e);
-        next(e);
+        const adders = await prisma.adder.findMany();
+        res.json(adders);
+    } catch (error) {
+        next(error);
     }
-}
+};
+
+exports.show = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.id);
+        const adder = await prisma.adder.findUnique({
+            where: { id }
+        });
+        res.json(adder);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.update = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.id);
+        const updatedAdder = await prisma.adder.update({
+            where: { id },
+            data: req.body
+        });
+        res.status(201).json(updatedAdder);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.create = async function (req, res, next) {
+    try {
+        const { user } = req.token;
+        const newAdder = {
+            ...req.body,
+            userId: user
+        };
+        const createdAdder = await prisma.adder.create({
+            data: newAdder
+        });
+        res.json(createdAdder);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.destroy = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.adderId);
+        const deletedAdder = await prisma.adder.delete({
+            where: { id }
+        });
+        res.json(deletedAdder);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+};

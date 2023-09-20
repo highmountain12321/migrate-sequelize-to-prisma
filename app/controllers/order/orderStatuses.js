@@ -1,29 +1,25 @@
-'use strict';
-
-/**
- * Module dependencies.
- */
-
-const { wrap: async } = require('co');
-const _ = require('lodash');
-const { models } = require('../../../sequelize');
-const {QueryTypes,Op} = require("sequelize");
-const Sequelize = require('sequelize');
-const {Services} = require("../../services");
+const prisma = require("../../../prisma/client");
+const { Services } = require("../../services");
 
 exports.create = async function (req, res, next) {
-
+    // Function is empty. When implemented, use prisma.orderStatus.create() to create a new order status.
 }
+
 exports.list = async function (req, res, next) {
-    const userModel = req.userModel;
+    const user = req.user;
 
-    const orderArray = await models.order_status.findAndCountAll();
-
-    return res.json(orderArray);
+    const orderStatuses = await prisma.orderStatus.findMany();
+    
+    res.json({
+        count: orderStatuses.length,
+        rows: orderStatuses
+    });
 }
+
 exports.update = async function (req, res, next) {
-
+    // Function is empty. When implemented, use prisma.orderStatus.update() to update an order status.
 }
-exports.delete = async function (req, res, next) {
 
+exports.delete = async function (req, res, next) {
+    // Function is empty. When implemented, use prisma.orderStatus.delete() to remove an order status.
 }

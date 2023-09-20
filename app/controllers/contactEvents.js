@@ -1,66 +1,86 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-const _ = require('lodash');
-
-exports.list = async function (req, res, next) {
-    const objArray = await models.auto_action.findAll();
-    res.json(objArray);
-}
-exports.listTypes = async function (req, res, next) {
-    const objArray = await models.auto_action_type.findAll();
-    res.json(objArray);
-}
-exports.show = async function (req, res, next) {
-    const id = req.params.actionId;
-    const obj = await models.auto_action.findByPk(id);
-    res.json(obj);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.actionId;
-    const body  = req.body;
-    await models.automation.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const obj = await models.auto_action.findByPk(id);
-    res.status(201).json(obj);
-}
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
-
-    const automation = req.body;
-    automation.userId = user;
-
-    const newModel = await models.automation.create(automation);
-    return res.json(newModel);
-
-}
-exports.destroy = async function (req, res,next) {
+exports.list = async function(req, res, next) {
     try {
-        const id = req.params.actionId;
-        const obj = await models.auto_action.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
-        console.log(e);
-        next(e);
+        const objArray = await prisma.auto_action.findMany();
+        res.json(objArray);
+    } catch (error) {
+        next(error);
     }
 }
-exports.runJob = async function (req, res,next) {
+
+exports.listTypes = async function(req, res, next) {
     try {
-        const typeId = req.params.contactEventTypeId;
-        const array = await models.contact_event.findAll({
-            where:{
-                typeId:typeId
-            }
-        })
+        const objArray = await prisma.auto_action_type.findMany();
+        res.json(objArray);
+    } catch (error) {
+        next(error);
+    }
+}
+
+exports.show = async function(req, res, next) {
+    try {
+        const id = parseInt(req.params.actionId);
+        const obj = await prisma.auto_action.findUnique({ where: { id: id } });
+        res.json(obj);
+    } catch (error) {
+        next(error);
+    }
+}
+
+exports.update = async function(req, res, next) {
+    try {
+        const id = parseInt(req.params.actionId);
+        const body = req.body;
+
+        const updatedObj = await prisma.automation.update({
+            where: { id: id },
+            data: body
+        });
+        
+        res.status(200).json(updatedObj);
+    } catch (error) {
+        next(error);
+    }
+}
+
+exports.create = async function(req, res, next) {
+    try {
+        const { user } = req.token;
+
+        const automation = {
+            ...req.body,
+            userId: user
+        };
+
+        const newModel = await prisma.automation.create({ data: automation });
+        res.json(newModel);
+    } catch (error) {
+        next(error);
+    }
+}
+
+exports.destroy = async function(req, res, next) {
+    try {
+        const id = parseInt(req.params.actionId);
+        await prisma.auto_action.delete({ where: { id: id } });
+        res.json({ message: "Deleted successfully" });
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+exports.runJob = async function(req, res, next) {
+    try {
+        const typeId = parseInt(req.params.contactEventTypeId);
+        const array = await prisma.contact_event.findMany({
+            where: { typeId: typeId }
+        });
         res.json(array);
-    }catch(e){
-        console.log(e);
-        next(e);
+    } catch (error) {
+        console.log(error);
+        next(error);
     }
 }

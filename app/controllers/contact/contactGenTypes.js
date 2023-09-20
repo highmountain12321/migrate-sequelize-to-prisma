@@ -1,46 +1,53 @@
-const {models} = require("../../../sequelize");
+const { prisma } = require("../../../prisma/client");
 
-exports.create = async function(req, res,next) {
-
+exports.create = async function(req, res, next) {
     if (req.body.id) {
-        res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`)
+        res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`);
     } else {
-        const genType = await models.gen_type.create(req.body);
+        const genType = await prisma.gen_type.create({
+            data: req.body
+        });
         return res.json(genType);
     }
-
 }
 
-exports.update = async function (req, res, next) {
-    const id = req.params.id;
-
-    const body  = req.body;
-    await models.gen_type.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id 
-            }});
-    const newProposal = await models.gen_type.findByPk(id);
-    res.status(201).json(newProposal);
-}
-exports.destroy = async function (req, res,next) {
+exports.update = async function(req, res, next) {
     try {
         const id = req.params.id;
-        const obj = await  models.gen_type.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
+
+        const updatedGenType = await prisma.gen_type.update({
+            where: { id: Number(id) },
+            data: req.body
+        });
+
+        res.status(201).json(updatedGenType);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+exports.destroy = async function(req, res, next) {
+    try {
+        const id = req.params.id;
+
+        const deletedGenType = await prisma.gen_type.delete({
+            where: { id: Number(id) }
+        });
+
+        res.json(deletedGenType);
+    } catch(e) {
         console.log(e);
         next(e);
     }
 }
-exports.list = async function (req, res) {
-    const data = await models.gen_type.findAndCountAll({
+
+exports.list = async function(req, res) {
+    const data = await prisma.gen_type.findMany({
         where: {
             isActive: true
         }
     });
-    res.json(data);
+
+    res.json({ count: data.length, rows: data });
 }

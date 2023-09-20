@@ -1,47 +1,56 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 const _ = require('lodash');
 
 exports.list = async function (req, res, next) {
-    const obj_array = await models.lender_proposal.findAll();
-    res.json(obj_array);
+    const objArray = await prisma.lender_proposal.findMany();
+    res.json(objArray);
 }
+
 exports.show = async function (req, res, next) {
-    const id = req.params.lenderProposalId;
-    const obj_array = await models.lender_proposal.findByPk(id);
-    res.json(obj_array);
+    const id = parseInt(req.params.lenderProposalId, 10);
+    const obj = await prisma.lender_proposal.findUnique({ where: { id: id } });
+    res.json(obj);
 }
+
 exports.update = async function (req, res, next) {
-    const id = req.params.lenderProposalId;
+    const id = parseInt(req.params.lenderProposalId, 10);
+    const body = req.body;
 
-    const body  = req.body;
-    await models.lender_proposal.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newProposal = await models.lender_proposal.findByPk(id);
-    res.status(201).json(newProposal);
-}
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
-
-    const newProposal = req.body;
-    newProposal.submittedBy = user;
-    const newProposalModal = await models.lender_proposal.create(newProposal);
-    return res.json(newProposalModal);
-
-}
-exports.destroy = async function (req, res,next) {
     try {
-        const id = req.params.lenderProposalId;
-        const obj = await models.lender_proposal.findByPk(id)
-        const response = await obj.destroy()
+        const updatedProposal = await prisma.lender_proposal.update({
+            where: { id: id },
+            data: body
+        });
+        res.status(201).json(updatedProposal);
+    } catch (error) {
+        next(error);
+    }
+}
+
+exports.create = async function (req, res, next) {
+    const { user, role } = req.token;
+
+    const newProposal = {
+        ...req.body,
+        submittedBy: user
+    };
+
+    try {
+        const newProposalModel = await prisma.lender_proposal.create({ data: newProposal });
+        res.json(newProposalModel);
+    } catch (error) {
+        next(error);
+    }
+}
+
+exports.destroy = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.lenderProposalId, 10);
+        const response = await prisma.lender_proposal.delete({ where: { id: id } });
         res.json(response);
-    }catch(e){
+    } catch (e) {
         console.log(e);
         next(e);
     }

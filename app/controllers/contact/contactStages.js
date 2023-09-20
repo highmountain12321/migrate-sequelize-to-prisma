@@ -1,43 +1,65 @@
-const { models } = require('../../../sequelize');
+const { prisma } = require("../../../prisma/client");
+
 exports.list = async function (req, res, next) {
-    const data = await models.contact_stage.findAll({
-        where: {
-            isActive: true
-        }
-    });
-    res.json({rows:data});
+    try {
+        const data = await prisma.contact_stage.findMany({
+            where: {
+                isActive: true
+            }
+        });
+
+        res.json({ rows: data });
+    } catch (error) {
+        console.log(error);
+        res.status(500).send("An error occurred while fetching data.");
+    }
 }
+
 exports.create = async function (req, res, next) {
-    const { user, role } = req.token;
+    try {
+        const { user } = req.token;
 
-    const newProposal = req.body;
-    newProposal.userId = user;
+        const newProposal = {
+            ...req.body,
+            userId: user
+        };
 
-    const newProposalModal = await models.contact_stage.create(newProposal);
-    return res.json(newProposalModal);
+        const newProposalModal = await prisma.contact_stage.create({
+            data: newProposal
+        });
 
+        return res.json(newProposalModal);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
 }
+
 exports.update = async function (req, res, next) {
-    const id = req.params.id;
+    try {
+        const id = req.params.id;
 
-    const body = req.body;
-    await models.contact_stage.update(body, {
-        returning: true,
-        plain: true,
-        where:
-        {
-            id: id
-        }
-    });
-    const newProposal = await models.contact_stage.findByPk(id);
-    res.status(201).json(newProposal);
+        const updatedContactStage = await prisma.contact_stage.update({
+            where: { id: Number(id) },
+            data: req.body
+        });
+
+        res.status(201).json(updatedContactStage);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
 }
+
 exports.destroy = async function (req, res, next) {
     try {
         const id = req.params.id;
-        const obj = await models.contact_stage.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
+
+        const deletedContactStage = await prisma.contact_stage.delete({
+            where: { id: Number(id) }
+        });
+
+        res.json(deletedContactStage);
     } catch (e) {
         console.log(e);
         next(e);

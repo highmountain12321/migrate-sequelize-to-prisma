@@ -1,10 +1,17 @@
-const { models } = require('../../../sequelize');
+const prisma = require("../../../prisma/client");
 
 exports.list = async function (req, res, next) {
-    const obj_array = await models.partner_sector.findAll({
-        order: [
-            ['order', 'ASC']
-        ],
-    });
-    res.json({rows:obj_array});
+    try {
+        const partnerSectors = await prisma.partnerSector.findMany({
+            orderBy: {
+                order: 'asc'
+            }
+        });
+        
+        res.json({
+            rows: partnerSectors
+        });
+    } catch (error) {
+        next(error);
+    }
 }

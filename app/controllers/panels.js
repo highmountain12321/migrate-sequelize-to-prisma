@@ -1,47 +1,62 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-const _ = require('lodash');
-
-exports.list = async function (req, res, next) {
-    const obj_array = await models.product_panel.findAll();
-    res.json(obj_array);
-}
-exports.show = async function (req, res, next) {
-    const id = req.params.id;
-    const obj_array = await models.product_panel.findByPk(id);
-    res.json(obj_array);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.id;
-
-    const body  = req.body;
-    await models.product_panel.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newProposal = await models.product_panel.findByPk(id);
-    res.status(201).json(newProposal);
-}
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
-
-    const newProposal = req.body;
-    newProposal.userId = user;
-    const newProposalModal = await models.product_panel.create(newProposal);
-    return res.json(newProposalModal);
-
-}
-exports.destroy = async function (req, res,next) {
+exports.list = async function(req, res, next) {
     try {
-        const id = req.params.id;
-        const obj = await models.product_panel.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
+        const products = await prisma.product_panel.findMany();
+        res.json(products);
+    } catch (e) {
+        next(e);
+    }
+}
+
+exports.show = async function(req, res, next) {
+    const id = parseInt(req.params.id, 10);
+    try {
+        const product = await prisma.product_panel.findUnique({ where: { id } });
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        res.json(product);
+    } catch (e) {
+        next(e);
+    }
+}
+
+exports.update = async function(req, res, next) {
+    const id = parseInt(req.params.id, 10);
+    const body = req.body;
+    try {
+        const updatedProduct = await prisma.product_panel.update({
+            where: { id },
+            data: body
+        });
+        res.status(201).json(updatedProduct);
+    } catch (e) {
+        next(e);
+    }
+}
+
+exports.create = async function(req, res, next) {
+    const { user, role } = req.token;
+    const newProduct = {
+        ...req.body,
+        userId: user
+    };
+    try {
+        const createdProduct = await prisma.product_panel.create({ data: newProduct });
+        res.json(createdProduct);
+    } catch (e) {
+        next(e);
+    }
+}
+
+exports.destroy = async function(req, res, next) {
+    const id = parseInt(req.params.id, 10);
+    try {
+        const deletedProduct = await prisma.product_panel.delete({ where: { id } });
+        res.json(deletedProduct);
+    } catch (e) {
         console.log(e);
         next(e);
     }

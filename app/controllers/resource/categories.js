@@ -1,52 +1,62 @@
-const { wrap: async } = require('co');
-const { models } = require('../../../sequelize');
-
-const _ = require('lodash');
+const prisma = require('../../../prisma/client');
 
 exports.list = async function (req, res, next) {
-    const data = await models.resource_category.findAndCountAll({
-        where: {
-            isActive: true
-        }
-    });
-    res.json(data);
-}
-exports.update = async function (req, res, next) {
-    const obj_array = await models.resource_category.findAll();
-    res.json(obj_array);
-}
-exports.create = async function(req, res,next) {
-
-    if (req.body.id) {
-        res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`)
-    } else {
-        const documentType = await models.resource_category.create(req.body);
-        return res.json(documentType);
-    }
-
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.id;
-
-    const body  = req.body;
-    await models.resource_category.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newProposal = await models.resource_category.findByPk(id);
-    res.status(201).json(newProposal);
-}
-exports.destroy = async function (req, res,next) {
     try {
-        const id = req.params.id;
-        const obj = await  models.resource_category.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
-        console.log(e);
-        next(e);
+        const categories = await prisma.resourceCategory.findMany({
+            where: {
+                isActive: true
+            }
+        });
+        res.json({ count: categories.length, rows: categories });
+    } catch (error) {
+        next(error);
     }
-}
+};
+
+exports.update = async function (req, res, next) {
+    try {
+        const categories = await prisma.resourceCategory.findMany();
+        res.json(categories);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.create = async function(req, res, next) {
+    try {
+        if (req.body.id) {
+            res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`);
+        } else {
+            const category = await prisma.resourceCategory.create({
+                data: req.body
+            });
+            res.json(category);
+        }
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.update = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.id);
+        const updatedCategory = await prisma.resourceCategory.update({
+            where: { id },
+            data: req.body
+        });
+        res.status(201).json(updatedCategory);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.destroy = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.id);
+        const deletedCategory = await prisma.resourceCategory.delete({ where: { id } });
+        res.json(deletedCategory);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+};

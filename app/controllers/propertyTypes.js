@@ -1,53 +1,57 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
-
-const _ = require('lodash');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 exports.list = async function (req, res, next) {
-    const obj_array = await models.property_type.findAndCountAll({
-        where:{
-            isActive:1
+    const objArray = await prisma.propertyType.findMany({
+        where: {
+            isActive: true,
         },
-        order: [
-            ['order', 'ASC']
-        ],
+        orderBy: {
+            order: 'asc',
+        },
     });
-    res.json(obj_array);
-}
+    res.json(objArray);
+};
 
-exports.create = async function(req, res,next) {
-
+exports.create = async function (req, res, next) {
     if (req.body.id) {
-        res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`)
+        res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`);
     } else {
-        const roofType = await models.property_type.create(req.body);
+        const roofType = await prisma.propertyType.create({
+            data: req.body,
+        });
         return res.json(roofType);
     }
+};
 
-}
 exports.update = async function (req, res, next) {
-    const id = req.params.id;
-
+    const id = parseInt(req.params.id);
     const body = req.body;
-    await models.property_type.update(body, {
-        returning: true,
-        plain: true,
-        where:
-        {
-            id: id
-        }
+    await prisma.propertyType.update({
+        where: {
+            id: id,
+        },
+        data: body,
     });
-    const newProposal = await models.property_type.findByPk(id);
+    const newProposal = await prisma.propertyType.findUnique({
+        where: {
+            id: id,
+        },
+    });
     res.status(201).json(newProposal);
-}
+};
+
 exports.destroy = async function (req, res, next) {
     try {
-        const id = req.params.id;
-        const obj = await models.property_type.findByPk(id)
-        const response = await obj.destroy()
+        const id = parseInt(req.params.id);
+        const response = await prisma.propertyType.delete({
+            where: {
+                id: id,
+            },
+        });
         res.json(response);
     } catch (e) {
         console.log(e);
         next(e);
     }
-}
+};

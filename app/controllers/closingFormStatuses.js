@@ -1,13 +1,15 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
-
-const _ = require('lodash');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 exports.list = async function (req, res, next) {
-    const data = await models.closing_form_status.findAndCountAll({
-        where: {
-            isActive: true
-        }
-    });
-    res.json(data);
+    try {
+        const data = await prisma.closing_form_status.findMany({
+            where: {
+                isActive: true
+            }
+        });
+        res.json({ count: data.length, rows: data });
+    } catch (error) {
+        next(error);
+    }
 }

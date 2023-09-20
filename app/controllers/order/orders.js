@@ -1,87 +1,104 @@
-'use strict';
-
-/**
- * Module dependencies.
- */
-
-const { wrap: async } = require('co');
-const _ = require('lodash');
-const { models } = require('../../../sequelize');
-const {QueryTypes,Op} = require("sequelize");
-const Sequelize = require('sequelize');
-const {Services} = require("../../services");
+const prisma = require("../../../prisma/client");
+const { Services } = require("../../services");
 
 exports.createCharge = async function (req, res, next) {
     const order = req.body;
     try {
-        const userModel = req.userModel;
-        if (!await userModel.isAdmin()) {
-            res.json({error: 'Not authorized'});
+        const user = req.user;
+        if (!user.isAdmin) {
+            return res.json({ error: 'Not authorized' });
         }
-        const orderModel = req.loadedOrderModel;
-        const repModel = orderModel.user;
-        const responseOrder = await repModel.createCharge(order.amount, {orderId: orderModel.id});
+        
+        const orderData = req.loadedOrder;
+        const repUser = orderData.user;
+        
+        const responseOrder = await repUser.createCharge(order.amount, { orderId: orderData.id });
 
-
-        if(!responseOrder){
-            res.json({error:'Missing Card'});
-            return;
+        if (!responseOrder) {
+            return res.json({ error: 'Missing Card' });
         }
-        if(responseOrder.paid){
-            orderModel.amount = order.amount;
-            orderModel.chargeId = responseOrder.id;
-            orderModel.fillDate = new Date();
-            orderModel.filledById = userModel.id;
-            await orderModel.save();
 
-            return res.json({success:true});
-        }else{
-            return res.json({success:false,message:'Not Paid'});
+        if (responseOrder.paid) {
+            await prisma.order.update({
+                where: { id: orderData.id },
+                data: {
+                    amount: order.amount,
+                    chargeId: responseOrder.id,
+                    fillDate: new Date(),
+                    filledById: user.id
+                }
+            });
+            return res.json({ success: true });
+        } else {
+            return res.json({ success: false, message: 'Not Paid' });
         }
-    }catch(e){
-        return res.json({error:e.message});
+    } catch (e) {
+        return res.json({ error: e.message });
     }
 };
 
 exports.create = async function (req, res, next) {
-    const userModel = req.userModel;
-    const organizationModel = await userModel.getOrganization();
-    const order = req.body
-    const newModel = await models.order.create(order);
-    await userModel.addOrder(newModel);
-    await organizationModel.addOrder(newModel);
-    const newM = await newModel.reload({
-        include:['status']
+    const user = req.user;
+    const organization = await prisma.organization.findUnique({ where: { userId: user.id } });
+    const order = req.body;
+
+    const newOrder = await prisma.order.create({
+        data: order,
+        include: { status: true }
     });
-    res.json(newM);
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { orders: { connect: { id: newOrder.id } } }
+    });
+
+    await prisma.organization.update({
+        where: { id: organization.id },
+        data: { orders: { connect: { id: newOrder.id } } }
+    });
+
+    res.json(newOrder);
 }
+
 exports.list = async function (req, res, next) {
-    const userModel = req.userModel;
-    if(await userModel.isAdmin()){
-        const orderArray = await models.order.findAndCountAll({
-            order:[['id','DESC']],
-            include: ['status','user','type']
+    const user = req.user;
+
+    if (user.isAdmin) {
+        const orders = await prisma.order.findMany({
+            orderBy: { id: 'desc' },
+            include: { status: true, user: true, type: true }
         });
-        res.json(orderArray);
-        return;
+        res.json(orders);
+    } else {
+        const userOrders = await prisma.user.findUnique({
+            where: { id: user.id },
+            include: {
+                orders: {
+                    orderBy: { id: 'desc' },
+                    include: { status: true, type: true }
+                }
+            }
+        });
+        const orderCount = userOrders.orders.length;
+        res.json({
+            rows: userOrders.orders,
+            count: orderCount
+        });
     }
-    const orders = await userModel.getOrders({
-        order:[['id','DESC']],
-        include: ['status','type']
-    });
-    const orderCount = await userModel.countOrders();
-    return res.json({
-        rows:orders,
-        count: orderCount
-    })
 }
+
 exports.update = async function (req, res, next) {
-    const updateObject = req.body;
-    const loadedModel = req.loadedOrderModel;
-    await loadedModel.update(updateObject);
-    res.json(loadedModel);
+    const updateData = req.body;
+    const loadedOrder = req.loadedOrder;
 
+    const updatedOrder = await prisma.order.update({
+        where: { id: loadedOrder.id },
+        data: updateData
+    });
+    
+    res.json(updatedOrder);
 }
-exports.delete = async function (req, res, next) {
 
+exports.delete = async function (req, res, next) {
+    // This function is empty. When implemented, use prisma.order.delete() to remove an order.
 }

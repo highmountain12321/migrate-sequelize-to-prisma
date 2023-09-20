@@ -1,61 +1,78 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-const _ = require('lodash');
-
-exports.createComment = async function (req, res, next) {
-    const {user, role} = req.token;
+exports.createComment = async function(req, res, next) {
+    const { user } = req.token;
     const loadedModel = req.loadedPartnerProposal;
     const newComment = req.body;
-    const newCommentModel =await models.closing_form_comment.create({
-        closingFormId:loadedClosingFormModel.id,
-        comment: newComment.comment,
-        userId: user
-    });
-    await newCommentModel.reload();
-    req.json(newCommentModel);
-
+    try {
+        const newCommentModel = await prisma.closing_form_comment.create({
+            data: {
+                closingFormId: loadedModel.id,
+                comment: newComment.comment,
+                userId: user
+            }
+        });
+        res.json(newCommentModel);
+    } catch (e) {
+        next(e);
+    }
 }
 
-exports.list = async function (req, res, next) {
-    const obj_array = await models.partner_proposal.findAll();
-    res.json(obj_array);
+exports.list = async function(req, res, next) {
+    try {
+        const partnerProposals = await prisma.partner_proposal.findMany();
+        res.json(partnerProposals);
+    } catch (e) {
+        next(e);
+    }
 }
-exports.show = async function (req, res, next) {
-    const id = req.params.proposalId;
-    const obj_array = await models.partner_proposal.findByPk(id);
-    res.json(obj_array);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.proposalId;
 
-    const body  = req.body;
-    await models.partner_proposal.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newProposal = await models.partner_proposal.findByPk(id);
-    res.status(201).json(newProposal);
+exports.show = async function(req, res, next) {
+    const id = parseInt(req.params.proposalId, 10);
+    try {
+        const partnerProposal = await prisma.partner_proposal.findUnique({ where: { id } });
+        if (!partnerProposal) {
+            return res.status(404).json({ error: 'Partner Proposal not found' });
+        }
+        res.json(partnerProposal);
+    } catch (e) {
+        next(e);
+    }
 }
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
+
+exports.update = async function(req, res, next) {
+    const id = parseInt(req.params.proposalId, 10);
+    const body = req.body;
+    try {
+        const updatedPartnerProposal = await prisma.partner_proposal.update({
+            where: { id },
+            data: body
+        });
+        res.status(201).json(updatedPartnerProposal);
+    } catch (e) {
+        next(e);
+    }
+}
+
+exports.create = async function(req, res, next) {
+    const { user } = req.token;
     const newProposal = req.body;
     newProposal.submittedBy = user;
-    const newProposalModal = await models.partner_proposal.create(newProposal);
-    return res.json(newProposalModal);
-
-}
-exports.destroy = async function (req, res,next) {
     try {
-        const id = req.params.proposalId;
-        const obj = await models.partner_proposal.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
-        console.log(e);
+        const createdProposal = await prisma.partner_proposal.create({ data: newProposal });
+        res.json(createdProposal);
+    } catch (e) {
+        next(e);
+    }
+}
+
+exports.destroy = async function(req, res, next) {
+    const id = parseInt(req.params.proposalId, 10);
+    try {
+        const deletedPartnerProposal = await prisma.partner_proposal.delete({ where: { id } });
+        res.json(deletedPartnerProposal);
+    } catch (e) {
         next(e);
     }
 }

@@ -1,81 +1,93 @@
-
-/**
- * Module dependencies.
- */
-
-const { wrap: async } = require('co');
-const only = require('only');
-const assign = Object.assign;
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const _ = require('lodash');
-const { models } = require('../../sequelize');
 
-
-exports.list = async function (req, res) {
-    const roles = await models.note.findAll();
-    res.json({data: roles});
+exports.list = async function (req, res, next) {
+    try {
+        const notes = await prisma.note.findMany();
+        res.json({ data: notes });
+    } catch (error) {
+        next(error);
+    }
 }
 
+exports.fetch = async function (req, res, next) {
+    const id = parseInt(req.params.id);
 
-exports.fetch = async function (req, res) {
-    const id = req.params.id;
-    const obj = await models.note.findByPk( id);
-    res.status(200).json({data:obj});
-};
-
-
-
-exports.count = async function (req, res) {
-    const count = await models.note.count();
-    res.json({
-        count: count,
-    })
+    try {
+        const note = await prisma.note.findUnique({
+            where: { id }
+        });
+        res.status(200).json({ data: note });
+    } catch (error) {
+        next(error);
+    }
 }
 
+exports.count = async function (req, res, next) {
+    try {
+        const count = await prisma.note.count();
+        res.json({ count });
+    } catch (error) {
+        next(error);
+    }
+}
 
-exports.create = async function(req, res,next) {
-    const {user, role} = req.token;
+exports.create = async function (req, res, next) {
+    const { user, role } = req.token;
 
-
-    if (req.body.id) {
-        res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`)
-    } else {
-        req.body.userId = user;
-        const data = await models.note.create(req.body);
-        const newNote = await models.note.findByPk(data.id,{include:[
-                {
-                    model:models.user,
-                    as:'user',
-                    attributes:['firstName','lastName']
+    try {
+        if (req.body.id) {
+            res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`);
+        } else {
+            const note = await prisma.note.create({
+                data: {
+                    ...req.body,
+                    userId: user
                 },
-            ]});
-        res.status(201).json(newNote);
+                include: {
+                    user: {
+                        select: {
+                            firstName: true,
+                            lastName: true
+                        }
+                    }
+                }
+            });
+            res.status(201).json(note);
+        }
+    } catch (error) {
+        next(error);
     }
-
-
 }
 
+exports.update = async function (req, res, next) {
+    const id = parseInt(req.params.id);
 
-exports.update = async function(req, res,next) {
-    const id = req.params.id;
-    if (req.body.id) {
-        delete req.body.id;
+    try {
+        if (req.body.id) {
+            delete req.body.id;
+        }
+        const updatedNote = await prisma.note.update({
+            where: { id },
+            data: req.body
+        });
+        res.status(201).json({ data: updatedNote });
+    } catch (error) {
+        next(error);
     }
-    const obj = await models.note.update(req.body, { where: { id: id } });
-    res.status(201).json({data:obj});
-    next();
-};
-
+}
 
 exports.destroy = async function (req, res, next) {
+    const id = parseInt(req.params.id);
+
     try {
-        const id = req.params.id;
-        const obj = await models.note.findByPk(id)
-        const response = await obj.destroy()
-        res.json({data: response});
-    }catch(e){
-        console.log(e);
-        next(e);
+        const deletedNote = await prisma.note.delete({
+            where: { id }
+        });
+        res.json({ data: deletedNote });
+    } catch (error) {
+        console.log(error);
+        next(error);
     }
 }
-
-

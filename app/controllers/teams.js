@@ -1,53 +1,59 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
-
-const _ = require('lodash');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 exports.list = async function (req, res, next) {
-    const obj_array = await models.user_group.findAll();
+    const obj_array = await prisma.userGroup.findMany();
     res.json(obj_array);
-}
-exports.listUsers = async function (req, res, next) {
-  //  const obj_array = await models.user_group.findAll();
-   // res.json(obj_array);
-}
-
+};
 
 exports.show = async function (req, res, next) {
-    const id = req.params.id;
-    const obj_array = await models.user_group.findByPk(id);
+    const id = parseInt(req.params.id);
+    const obj_array = await prisma.userGroup.findUnique({
+        where: {
+            id: id,
+        },
+    });
     res.json(obj_array);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.id;
+};
 
-    const body  = req.body;
-    await models.user_group.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newProposal = await models.user_group.findByPk(id);
+exports.update = async function (req, res, next) {
+    const id = parseInt(req.params.id);
+    const body = req.body;
+    await prisma.userGroup.update({
+        where: {
+            id: id,
+        },
+        data: body,
+    });
+    const newProposal = await prisma.userGroup.findUnique({
+        where: {
+            id: id,
+        },
+    });
     res.status(201).json(newProposal);
-}
+};
+
 exports.create = async function (req, res, next) {
     const userModel = req.userModel;
     const newProposal = req.body;
     newProposal.userId = userModel.id;
-    const newProposalModal = await models.user_group.create(newProposal);
+    const newProposalModal = await prisma.userGroup.create({
+        data: newProposal,
+    });
     return res.json(newProposalModal);
+};
 
-}
-exports.destroy = async function (req, res,next) {
+exports.destroy = async function (req, res, next) {
     try {
-        const id = req.params.id;
-        const obj = await models.user_group.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
+        const id = parseInt(req.params.id);
+        await prisma.userGroup.delete({
+            where: {
+                id: id,
+            },
+        });
+        res.json({ message: 'User group deleted successfully' });
+    } catch (e) {
         console.log(e);
         next(e);
     }
-}
+};

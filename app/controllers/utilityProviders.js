@@ -1,9 +1,7 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
-
-const _ = require('lodash');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 exports.list = async function (req, res, next) {
-    const obj_array = await models.utility_provider.findAll();
+    const obj_array = await prisma.utilityProvider.findMany();
     res.json(obj_array);
 }

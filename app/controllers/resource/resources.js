@@ -1,129 +1,132 @@
-
-
-
-process.env.BACKBLAZE_BUCKET_ID = '3281e2f2e649281c7bdd0f1a';
+const prisma = require('../../../prisma/client');
 const B2 = require('backblaze-b2');
 
-
 const b2 = new B2({
-    applicationKeyId: '0022122698cbdfa0000000001', // or accountId: 'accountId'
-    applicationKey: 'K002dsHoZiBA4MZrb/7KqWJ2tAGWzPY' // or masterApplicationKey
+    applicationKeyId: '0022122698cbdfa0000000001',
+    applicationKey: 'K002dsHoZiBA4MZrb/7KqWJ2tAGWzPY'
 });
 
-
-const { wrap: async } = require('co');
-const { models } = require('../../../sequelize');
-
-const _ = require('lodash');
-
 exports.list = async function (req, res, next) {
-    const obj_array = await models.resource.findAndCountAll();
-    res.json(obj_array);
-}
+    try {
+        const resources = await prisma.resource.findMany();
+        res.json({ count: resources.length, rows: resources });
+    } catch (error) {
+        next(error);
+    }
+};
 
 exports.update = async function (req, res, next) {
-    const id = req.params.resourceId;
-    const body  = req.body;
-    await models.resource.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const newObject = await models.resource.findByPk(id);
-    res.status(201).json(newObject);
-}
-exports.show = async function (req, res, next) {
-    const id = req.params.resourceId;
-    const obj = await models.resource.findByPk(id);
-    res.status(200).json(obj);
-}
-exports.create = async function (req, res, next) {
-
-    const {user, role} = req.token;
-
-        const userId = user;
-        const {name, description, content} = req.body;
-
-    const doc = await models.resource.create({
-        name: name,
-        content,
-        description: description,
-        userId: userId
-    });
-
-
-    res.json(doc);
-
-}
-exports.destroy = async function (req, res,next) {
-    const {user, role} = req.token;
-    const id = req.params.resourceId;
-    const resourceModel = await models.resource.findByPk(id);
-    if(!resourceModel){
-        return next({message:'not found'});
-    }
-
-    await resourceModel.destroy();
-    res.json({delete:true});
-
-}
-
-exports.download = async function (req, res,next) {
     try {
-        const id = req.params.id;
-        const obj = await models.resource.findByPk(id, {raw: true})
+        const id = parseInt(req.params.resourceId);
+        const updatedResource = await prisma.resource.update({
+            where: { id },
+            data: req.body
+        });
+        res.status(201).json(updatedResource);
+    } catch (error) {
+        next(error);
+    }
+};
 
-        await b2.authorize(); // must authorize first (authorization lasts 24 hrs)
+exports.show = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.resourceId);
+        const resource = await prisma.resource.findUnique({
+            where: { id }
+        });
+        res.status(200).json(resource);
+    } catch (error) {
+        next(error);
+    }
+};
 
+exports.create = async function (req, res, next) {
+    try {
+        const { user, role } = req.token;
+        const resource = await prisma.resource.create({
+            data: {
+                name: req.body.name,
+                description: req.body.description,
+                content: req.body.content,
+                userId: user
+            }
+        });
+        res.json(resource);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.destroy = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.resourceId);
+        const deletedResource = await prisma.resource.delete({ where: { id } });
+        res.json({ delete: true });
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+};
+
+exports.download = async function (req, res, next) {
+    // This method largely remains the same as it primarily interacts with backblaze-b2
+    // Just the Sequelize specific call is replaced
+    try {
+        const id = parseInt(req.params.id);
+        const resource = await prisma.resource.findUnique({
+            where: { id }
+        });
+
+        if (!resource) throw new Error('Resource not found.');
+
+        await b2.authorize();
         const logInb2 = await b2.getDownloadAuthorization({
             bucketId: process.env.BACKBLAZE_BUCKET_ID,
-            validDurationInSeconds: 5000, // a number from 0 to 604800
-            fileNamePrefix: obj.key
+            validDurationInSeconds: 5000,
+            fileNamePrefix: resource.key
         });
         let download = await b2.downloadFileById({
             bucketName: process.env.BACKBLAZE_BUCKET_ID,
-            fileId: obj.versionId,
-            responseType: "stream", // options are as in axios: 'arraybuffer', 'blob', 'resource', 'json', 'text', 'stream'
+            fileId: resource.versionId,
+            responseType: "stream"
         });
-
-        res.setHeader('Content-Disposition', `attachment; filename=${obj.originalName}`);
-        download.data.pipe(res)
-    }catch(e){
-        console.error(e.message);
-        next(e)
+        res.setHeader('Content-Disposition', `attachment; filename=${resource.originalName}`);
+        download.data.pipe(res);
+    } catch (error) {
+        console.error(error.message);
+        next(error);
     }
+};
 
-}
-
-exports.tokenDownload = async function (req, res,next) {
+exports.tokenDownload = async function (req, res, next) {
+    // Similarly for tokenDownload, keep the backblaze-b2 specific calls
+    // Only replace the Sequelize specific calls
     try {
-        const id = req.query.id;
+        const id = parseInt(req.query.id);
         const accessToken = req.query.accessToken;
 
+        const resource = await prisma.resource.findUnique({
+            where: { id }
+        });
 
-        const obj = await models.resource.findByPk(id, {raw: true})
+        if (!resource) throw new Error('Resource not found.');
 
-        await b2.authorize(); // must authorize first (authorization lasts 24 hrs)
-
+        await b2.authorize();
         const logInb2 = await b2.getDownloadAuthorization({
             bucketId: process.env.BACKBLAZE_BUCKET_ID,
-            validDurationInSeconds: 5000, // a number from 0 to 604800
-            fileNamePrefix: obj.key
+            validDurationInSeconds: 5000,
+            fileNamePrefix: resource.key
         });
         let download = await b2.downloadFileById({
             bucketName: process.env.BACKBLAZE_BUCKET_ID,
-            fileId: obj.versionId,
-            responseType: "stream", // options are as in axios: 'arraybuffer', 'blob', 'resource', 'json', 'text', 'stream'
+            fileId: resource.versionId,
+            responseType: "stream"
         });
-
-        res.setHeader('Content-Disposition', `attachment; filename=${obj.originalName}`);
-        download.data.pipe(res)
-    }catch(e){
-        console.error(e.message);
-        next(e)
+        res.setHeader('Content-Disposition', `attachment; filename=${resource.originalName}`);
+        download.data.pipe(res);
+    } catch (error) {
+        console.error(error.message);
+        next(error);
     }
-
-}
+};
 

@@ -1,53 +1,57 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-const _ = require('lodash');
-
-exports.list = async function (req, res, next) {
-    const obj_array = await models.roof_type.findAll({
-        where:{
-            isActive:1
+exports.list = async function (req, res) {
+    const obj_array = await prisma.roofType.findMany({
+        where: {
+            isActive: true,
         },
-        order: [
-            ['order', 'ASC']
-        ],
+        orderBy: {
+            order: 'asc',
+        },
     });
     res.json(obj_array);
-}
+};
 
-exports.create = async function(req, res,next) {
-
+exports.create = async function (req, res, next) {
     if (req.body.id) {
-        res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`)
+        res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`);
     } else {
-        const roofType = await models.roof_type.create(req.body);
+        const roofType = await prisma.roofType.create({
+            data: req.body,
+        });
         return res.json(roofType);
     }
+};
 
-}
 exports.update = async function (req, res, next) {
-    const id = req.params.id;
-
+    const id = parseInt(req.params.id);
     const body = req.body;
-    await models.roof_type.update(body, {
-        returning: true,
-        plain: true,
-        where:
-        {
-            id: id
-        }
+    await prisma.roofType.update({
+        where: {
+            id: id,
+        },
+        data: body,
     });
-    const newProposal = await models.roof_type.findByPk(id);
+    const newProposal = await prisma.roofType.findUnique({
+        where: {
+            id: id,
+        },
+    });
     res.status(201).json(newProposal);
-}
+};
+
 exports.destroy = async function (req, res, next) {
     try {
-        const id = req.params.id;
-        const obj = await models.roof_type.findByPk(id)
-        const response = await obj.destroy()
+        const id = parseInt(req.params.id);
+        const response = await prisma.roofType.delete({
+            where: {
+                id: id,
+            },
+        });
         res.json(response);
     } catch (e) {
         console.log(e);
         next(e);
     }
-}
+};

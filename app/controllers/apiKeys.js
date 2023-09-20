@@ -1,69 +1,92 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
-
-const _ = require('lodash');
+const prisma = require('../../prisma/client');
 
 exports.list = async function (req, res, next) {
-    const {isActive = true} = req.query;
-    const objArray = await  models.api_key.findAndCountAll({
-        where: {
-            isActive
-        },
-        include: [{
-            model: models.user,
-            as: 'user',
-            attributes:['firstName','lastName','id','picUrl'],
-            include: [
-                {
-                    as: "role",
-                    model: models.role,
-                    attributes: ['slug'],
-                }]
-        },{
-            attributes:['name','id'],
-            model: models.user_group,
-            as: 'group',
-        }]
-    });
-    res.json(objArray);
-}
-exports.show = async function (req, res, next) {
-    const id = req.params.id;
-    const objArray = await  models.api_key.findByPk(id);
-    res.json(objArray);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.apiKeyId;
-
-    const body  = req.body;
-    await  models.api_key.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const item = await  models.api_key.findByPk(id);
-    res.status(201).json(item);
-}
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
-
-    const newProposal = req.body;
-    newProposal.userId = user;
-
-    const newProposalModal = await  models.api_key.create(newProposal);
-    return res.json(newProposalModal);
-
-}
-exports.destroy = async function (req, res,next) {
     try {
-        const id = req.params.apiKeyId;
-        const obj = await  models.api_key.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
-        console.log(e);
-        next(e);
+        const { isActive = true } = req.query;
+
+        const apiKeys = await prisma.apiKey.findMany({
+            where: {
+                isActive: Boolean(isActive)
+            },
+            include: {
+                user: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        id: true,
+                        picUrl: true,
+                        role: {
+                            select: {
+                                slug: true
+                            }
+                        }
+                    }
+                },
+                group: {
+                    select: {
+                        name: true,
+                        id: true
+                    }
+                }
+            }
+        });
+
+        res.json(apiKeys);
+    } catch (error) {
+        next(error);
     }
-}
+};
+
+exports.show = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.id);
+        const apiKey = await prisma.apiKey.findUnique({
+            where: { id }
+        });
+        res.json(apiKey);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.update = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.apiKeyId);
+        const updatedApiKey = await prisma.apiKey.update({
+            where: { id },
+            data: req.body
+        });
+        res.status(201).json(updatedApiKey);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.create = async function (req, res, next) {
+    try {
+        const { user } = req.token;
+        const newApiKey = {
+            ...req.body,
+            userId: user
+        };
+        const createdApiKey = await prisma.apiKey.create({
+            data: newApiKey
+        });
+        res.json(createdApiKey);
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.destroy = async function (req, res, next) {
+    try {
+        const id = parseInt(req.params.apiKeyId);
+        const deletedApiKey = await prisma.apiKey.delete({
+            where: { id }
+        });
+        res.json(deletedApiKey);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+};

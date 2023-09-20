@@ -1,169 +1,144 @@
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
-
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const _ = require('lodash');
 
-exports.list = async function (req, res, next) {
-    const {isActive = true} = req.query;
-    const obj_array = await models.organization.findAndCountAll({where:{isActive}});
-    res.json(obj_array);
+exports.list = async function(req, res, next) {
+    const { isActive = true } = req.query;
+    const organizations = await prisma.organization.findMany({ where: { isActive } });
+    res.json(organizations);
 }
 
-
-exports.patchUser = async function(req, res,next) {
-    const organizationId = req.params.organizationId;
+exports.patchUser = async function(req, res, next) {
+    const organizationId = parseInt(req.params.organizationId, 10);
     const obj = req.body;
     let userId = obj.add;
-    if(obj.remove){
+    if (obj.remove) {
         userId = obj.remove;
     }
     try {
-        const organizationModel = await models.organization.findByPk(organizationId);
-        if(!organizationModel || organizationModel.isActive === false){
-            return next({message:'Organization not active'});
+        const organizationModel = await prisma.organization.findUnique({ where: { id: organizationId } });
+        if (!organizationModel || !organizationModel.isActive) {
+            return next({ message: 'Organization not active' });
         }
-        const userModel = await models.user.findByPk(userId);
-        if(!userModel || userModel.isActive === false){
-            return next({message:'User not active'});
+
+        const userModel = await prisma.user.findUnique({ where: { id: userId } });
+        if (!userModel || !userModel.isActive) {
+            return next({ message: 'User not active' });
         }
-        userModel.organizationId = organizationModel.id;
-        await userModel.save();
 
+        await prisma.user.update({
+            where: { id: userId },
+            data: { organizationId: organizationModel.id }
+        });
 
-        res.status(201).json(await organizationModel.reload());
-    }catch(e){
-        next({message:e.message});
+        const reloadedOrganization = await prisma.organization.findUnique({ where: { id: organizationId } });
+        res.status(201).json(reloadedOrganization);
+    } catch (e) {
+        next({ message: e.message });
     }
 }
 
-exports.show = async function (req, res, next) {
-    const organizationModel = req.loadedOrganization;
+exports.show = async function(req, res, next) {
+    const organizationModel = await prisma.organization.findUnique({ where: { id: req.params.organizationId } });
     res.json(organizationModel);
 }
-exports.update = async function (req, res, next) {
-    const organizationModel = req.loadedOrganization;
-    const body  = req.body;
-    await organizationModel.update(body,{
-        returning: true,
-        plain: true
+
+exports.update = async function(req, res, next) {
+    const updatedOrganization = await prisma.organization.update({
+        where: { id: parseInt(req.params.organizationId, 10) },
+        data: req.body
     });
-    const reloadedModel = await organizationModel.reload();
-    res.status(201).json(reloadedModel);
-}
-exports.create = async function (req, res, next) {
-    const userModel = req.userModel;
-    const newObject = req.body;
-    const newObjectModel = await models.organization.create(newObject);
-    return res.json(newObjectModel);
+    res.status(201).json(updatedOrganization);
 }
 
-exports.listUsers = async function (req, res, next) {
-    const organizationModel = req.loadedOrganization;
-    const {isActive = true} = req.query;
-    const query = {
-        order: [
-            ['id', 'DESC']
-        ],
-        where:{isActive},
-        attributes:['id','firstName','lastName','email','primaryPhone'],
-        include:[{
-            model: models.role,
-            as: 'role',
-            attributes: ['name']
-        }]
-    }
-
-    const obj_array = await organizationModel.getUsers(query);
-    res.json({rows:obj_array});
+exports.create = async function(req, res, next) {
+    const newOrganization = await prisma.organization.create({ data: req.body });
+    res.json(newOrganization);
 }
-exports.listGroups = async function (req, res, next) {
-    const organizationModel = req.loadedOrganization;
-    const {isActive = true} = req.query;
-    const query = {
-        order: [
-            ['id', 'DESC']
-        ],
-        where:{isActive},
-        attributes:['id','name']
-    }
 
-    const obj_array = await organizationModel.getTeams(query);
-    res.json({rows:obj_array});
+exports.listUsers = async function(req, res, next) {
+    const users = await prisma.user.findMany({
+        where: { organizationId: parseInt(req.params.organizationId, 10), isActive: req.query.isActive || true },
+        include: { role: true },
+        orderBy: { id: 'desc' },
+        select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            primaryPhone: true,
+            role: { select: { name: true } }
+        }
+    });
+    res.json({ rows: users });
 }
-exports.listContacts = async function (req, res, next) {
-    const organizationModel = req.loadedOrganization;
-    const {isActive = true} = req.query;
-    const query = {
-        attributes:['createdAt','id','firstName','lastName','primaryPhone','email','name','busName'],
-        order: [
-            ['id', 'DESC']
-        ],
-        include:[{
-            attributes: [
-                'id','toId','createdAt'
-            ],
-            required: false,
-            separate: true,
-            model: models.contact_update,
-            order: [['id', 'DESC']],
-            as: 'updates',
-            limit: 1,
-            include: [{
-                attributes:['name','id'],
-                model: models.option,
-                as: 'to'
+
+exports.listGroups = async function(req, res, next) {
+    const groups = await prisma.group.findMany({
+        where: { organizationId: parseInt(req.params.organizationId, 10), isActive: req.query.isActive || true },
+        orderBy: { id: 'desc' },
+        select: { id: true, name: true }
+    });
+    res.json({ rows: groups });
+}
+
+exports.listContacts = async function(req, res, next) {
+    const contacts = await prisma.contact.findMany({
+        where: { organizationId: parseInt(req.params.organizationId, 10), isActive: req.query.isActive || true },
+        include: {
+            updates: {
+                take: 1,
+                orderBy: { id: 'desc' },
+                include: { to: true }
             }
-            ]
-        }],
-        where:{isActive}
-    }
-
-    const obj_array = await organizationModel.getContacts(query);
-    const getCount = await organizationModel.countContacts(query);
-    res.json({rows:obj_array,count: getCount});
+        },
+        select: {
+            createdAt: true,
+            id: true,
+            firstName: true,
+            lastName: true,
+            primaryPhone: true,
+            email: true,
+            name: true,
+            busName: true,
+            updates: true
+        }
+    });
+    const count = await prisma.contact.count({ where: { organizationId: parseInt(req.params.organizationId, 10), isActive: req.query.isActive || true } });
+    res.json({ rows: contacts, count });
 }
 
-exports.deleteContact = async function (req, res,next) {
+exports.deleteContact = async function(req, res, next) {
     try {
-        const model = req.loadedContactModel;
-        const defaultOrganization = await models.organization.findOne({
-            where:{
-                isDefault:true
-            }
-        })
-        model.organizationId = defaultOrganization.id;
-        await model.save();
-        res.json(model);
-    }catch(e){
-        console.log(e);
-        next(e);
-    }
-}
-exports.deleteUser = async function (req, res,next) {
-    try {
-        const model = req.loadedUserModel;
-        const defaultOrganization = await models.organization.findOne({
-            where:{
-                isDefault:true
-            }
-        })
-        model.organizationId = defaultOrganization.id;
-        await model.save();
-        res.json(model);
-    }catch(e){
+        const contact = await prisma.contact.update({
+            where: { id: parseInt(req.params.contactId, 10) },
+            data: { organizationId: (await prisma.organization.findFirst({ where: { isDefault: true } })).id }
+        });
+        res.json(contact);
+    } catch (e) {
         console.log(e);
         next(e);
     }
 }
 
-
-exports.destroy = async function (req, res,next) {
+exports.deleteUser = async function(req, res, next) {
     try {
-        const id = req.params.id;
-        const obj = await models.organization.findByPk(id)
-        const response = await obj.destroy()
-        res.json(response);
-    }catch(e){
+        const user = await prisma.user.update({
+            where: { id: parseInt(req.params.userId, 10) },
+            data: { organizationId: (await prisma.organization.findFirst({ where: { isDefault: true } })).id }
+        });
+        res.json(user);
+    } catch (e) {
+        console.log(e);
+        next(e);
+    }
+}
+
+exports.destroy = async function(req, res, next) {
+    try {
+        const organization = await prisma.organization.delete({ where: { id: parseInt(req.params.organizationId, 10) } });
+        res.json(organization);
+    } catch (e) {
         console.log(e);
         next(e);
     }

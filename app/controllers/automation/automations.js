@@ -1,100 +1,105 @@
-const { wrap: async } = require('co');
-const { models } = require('../../../sequelize');
-
-const _ = require('lodash');
-
-exports.list = async function (req, res, next) {
-    const params = req.query;
-    const query = {
-        include: [{
-            model: models.auto_event_trigger,
-            as:'trigger'
-        },{
-            model: models.auto_action,
-            as:'action'
-        },{
-            model: models.user,
-            as:'targetUser'
-        },{
-            model: models.user_group,
-            as:'targetGroup'
-        }]
-    }
-    if(params.actionId){
-        query.where = {
-            actionId: params.actionId
-        }
-    }
-    const objArray = await models.auto_automation.findAndCountAll(query);
-
-    res.json(objArray);
-}
-exports.show = async function (req, res, next) {
-    const id = req.params.automationId;
-    const obj = await models.auto_automation.findByPk(id);
-    res.json(obj);
-}
-exports.update = async function (req, res, next) {
-    const id = req.params.automationId;
-    const body  = req.body;
-    await models.auto_automation.update(body,{
-        returning: true,
-        plain: true,
-        where:
-            {
-                id:id
-            }});
-    const obj = await models.auto_automation.findByPk(id,{
-        include: [{
-            model: models.auto_event_trigger,
-            as:'trigger'
-        },{
-            model: models.auto_action,
-            as:'action'
-        },{
-            model: models.user,
-            as:'targetUser'
-        },{
-            model: models.contact_source,
-            as:'contactSource'
-        },{
-            model: models.user_group,
-            as:'targetGroup'
-        }]
-    });
-    res.status(201).json(obj);
-}
-exports.create = async function (req, res, next) {
-    const {user, role} = req.token;
-
-    const automation = req.body;
-    automation.userId = user;
-    automation.creatorId = user;
-    const newModel = await models.auto_automation.create(automation,{
-        include: [{
-            model: models.auto_event_trigger,
-            as:'trigger'
-        },{
-            model: models.auto_action,
-            as:'action'
-        },{
-            model: models.user,
-            as:'targetUser'
-        },{
-            model: models.user_group,
-            as:'targetGroup'
-        }]
-    });
-    return res.json(newModel);
-}
-exports.destroy = async function (req, res,next) {
+// List
+exports.list = async function(req, res, next) {
     try {
-        const id = req.params.automationId;
-        const obj = await models.auto_automation.findByPk(id)
-        const response = await obj.destroy()
+        const params = req.query;
+
+        let query = {
+            include: {
+                trigger: true,
+                action: true,
+                targetUser: true,
+                targetGroup: true
+            }
+        };
+
+        if (params.actionId) {
+            query.where = {
+                actionId: Number(params.actionId)
+            };
+        }
+
+        const objArray = await prisma.autoAutomation.findMany(query);
+        res.json(objArray);
+
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+// Show
+exports.show = async function(req, res, next) {
+    try {
+        const id = Number(req.params.automationId);
+        const obj = await prisma.autoAutomation.findUnique({ where: { id } });
+        res.json(obj);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+// Update
+exports.update = async function(req, res, next) {
+    try {
+        const id = Number(req.params.automationId);
+        const body = req.body;
+
+        await prisma.autoAutomation.update({ 
+            where: { id },
+            data: body, 
+            include: {
+                trigger: true,
+                action: true,
+                targetUser: true,
+                contactSource: true, // Note: you also mentioned contactSource here
+                targetGroup: true
+            }
+        });
+        
+        const updatedObj = await prisma.autoAutomation.findUnique({ where: { id } });
+        res.status(201).json(updatedObj);
+
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+// Create
+exports.create = async function(req, res, next) {
+    try {
+        const { user, role } = req.token;
+        const automation = req.body;
+        automation.userId = user;
+        automation.creatorId = user;
+
+        const newModel = await prisma.autoAutomation.create({
+            data: automation,
+            include: {
+                trigger: true,
+                action: true,
+                targetUser: true,
+                targetGroup: true
+            }
+        });
+
+        res.json(newModel);
+
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+// Destroy
+exports.destroy = async function(req, res, next) {
+    try {
+        const id = Number(req.params.automationId);
+        const response = await prisma.autoAutomation.delete({ where: { id } });
         res.json(response);
-    }catch(e){
-        console.log(e);
-        next(e);
+    } catch (error) {
+        console.log(error);
+        next(error);
     }
 }

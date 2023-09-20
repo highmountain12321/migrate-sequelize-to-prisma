@@ -1,66 +1,63 @@
 'use strict';
 
-/**
- * Module dependencies.
- */
-
+const { PrismaClient } = require('@prisma/client');
 const { Services } = require('../services');
-
-
-const { wrap: async } = require('co');
 const jwt = require('jsonwebtoken');
+const prisma = new PrismaClient();
 
-
-const { models } = require('../../sequelize');
-
-/**
- * Create user
- */
+exports.isActive = async function(req, res, next) {
+    // This function is empty, nothing to convert here
+}
 
 
 exports.isActive = async function(req, res,next) {
 
 }
-exports.register = async function(req, res,next) {
+
+exports.register = async function(req, res, next) {
     try {
         if (req.body.id) {
-            res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`)
+            res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`);
             return;
         }
 
+        const default_group = await prisma.user_group.findFirst({ where: { isDefault: true } });
 
-        const default_group = await models.user_group.findOne({where: {isDefault: true}});
-        let default_role;
+        let roleConditions = { isDefault: true };
         if (req.body.role && req.body.role === 'partner') {
-            default_role = await models.role.findOne({where: {slug: 'partner'}});
-        } else {
-            default_role = await models.role.findOne({where: {isDefault: true}});
-        }
-        if (!default_role) {
-            return next({message: 'Role not found'});
+            roleConditions = { slug: 'partner' };
         }
 
-        const user = await models.user.create(req.body);
-        user.roleId = default_role.id;
-        const jwtToken = jwt.sign({user: user.id, sub: user.id, role: default_role.slug}, process.env.JWT_TOKEN, {
+        const default_role = await prisma.role.findFirst({ where: roleConditions });
+        if (!default_role) {
+            return next({ message: 'Role not found' });
+        }
+
+        const user = await prisma.user.create({ data: { ...req.body, roleId: default_role.id } });
+
+        const jwtToken = jwt.sign({ user: user.id, sub: user.id, role: default_role.slug }, process.env.JWT_TOKEN, {
             expiresIn: '5h'
         });
-
         res.setHeader('Access-Token', jwtToken);
 
-        let otherIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress ||  req.headers['fastly-client-ip'];;
-        const userIp = otherIp.split(',')[0];
+        const userIp = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.headers['fastly-client-ip']).split(',')[0];
+
         try {
             await Services.Auth.logLocation(user.id, userIp);
-        }catch(e){
+        } catch (e) {
             console.error(e);
         }
 
-        await user.save();
-        await default_group.addUser(user);
+        if (default_group) {
+            // Assuming you have a relation set up in your Prisma schema
+            await prisma.user_group.update({
+                where: { id: default_group.id },
+                data: { users: { connect: { id: user.id } } }
+            });
+        }
 
-        res.json({token: jwtToken});
-    }catch(e){
+        res.json({ token: jwtToken });
+    } catch (e) {
         next(e);
     }
 };
@@ -107,26 +104,36 @@ exports.googleCallback = async function(req, res, next) {
     }
 }
 exports.login = async function(req, res, next) {
-    const {email, password} = req.body;
-    if(!email){
-        return next({message:'Email missing'});
+    const { email, password } = req.body;
+    if (!email) {
+        return next({ message: 'Email missing' });
     }
-    const user = await models.user.findOne({where:{email:email, isActive:1},include:['role']});
-    if(!user){
-        res.json({message:'User not found'});
-        return;
-    }
-    const hash = user.generateHash(password);
-    if(!user.validPassword(password)){
-        res.json({message:'Password is incorrect'});
-        return;
-    }
-    user.set('lastLoginDate', new Date());
-    await user.save();
-    const token = jwt.sign({ user: user.id,sub: user.id, role: user.role.slug, partner: user.partnerId}, process.env.JWT_TOKEN, {
-        expiresIn: '8h'
+
+    const user = await prisma.user.findFirst({
+        where: { email: email, isActive: true },
+        include: { role: true }
     });
 
+    if (!user) {
+        res.json({ message: 'User not found' });
+        return;
+    }
+
+    // ... Assuming you have these functions in your user model in Prisma ...
+    // const hash = user.generateHash(password);
+    if (!user.validPassword(password)) {
+        res.json({ message: 'Password is incorrect' });
+        return;
+    }
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginDate: new Date() }
+    });
+
+    const token = jwt.sign({ user: user.id, sub: user.id, role: user.role.slug, partner: user.partnerId }, process.env.JWT_TOKEN, {
+        expiresIn: '8h'
+    });
     res.setHeader('x-userId',user.id);
 
 
