@@ -479,3 +479,47 @@ model SolarIncentive {
 
   @@map("solar_incentive")
 }
+
+
+model Lender {
+  id            Int      @id @default(autoincrement())
+  name          String
+  websiteUrl    String?
+  primaryPhone  String?
+  secondaryPhone String?
+  fax           String?
+  description   String?
+  email         String?
+  logoUrl       String?
+  metadata      Json?
+  slug          String?  @unique
+  isActive      Boolean  @default(true)
+  isDefault     Boolean? @default(false)
+  order         Int      @default(1)
+  group         String   @default("default")
+
+  @@map("lender")
+}
+
+model LenderProposal {
+  id          Int      @id @default(autoincrement())
+  url         String
+  loanAmount  Int
+  systemPrice Int
+  systemSize  Int
+  rate        Int
+  months      Int
+  years       Int
+  isCash      Boolean  @default(false)
+  cashAmount  Int
+  ppwGross    Float
+  ppwNet      Float
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  selectDate  DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("lender_proposal")
+}
