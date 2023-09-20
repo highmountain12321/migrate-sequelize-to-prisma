@@ -241,3 +241,12 @@ model ClosingForm {
 //   contact Contact @relation(fields: [contactId], references: [id])
 // }
 
+model ContactCommentType {
+  id        Int       @id @default(autoincrement())
+  type      String
+}
+
+model ContactComment {
+  id      Int    @id @default(autoincrement())
+  comment String
+}
