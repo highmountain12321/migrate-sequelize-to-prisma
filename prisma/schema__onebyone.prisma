@@ -250,3 +250,32 @@ model ContactComment {
   id      Int    @id @default(autoincrement())
   comment String
 }
+
+model PocRole {
+  id          Int     @id @default(autoincrement())
+  name        String
+  isDefault   Boolean @default(false)
+  isActive    Boolean @default(true)
+  order       Int     @default(1)
+  pocs        Poc[] // This is recommendation(closing_form, contact, closing_form_update....)
+}
+
+
+model Poc {
+  id          Int      @id @default(autoincrement())
+  firstName   String
+  lastName    String
+  primaryPhone String?
+  primaryEmail String?
+  test        Boolean?
+  metadata    Json?
+  isActive    Boolean  @default(true)
+  group       String   @default("default")
+  role        PocRole?  @relation(fields: [roleId], references: [id])
+  roleId      Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+// Similarly, add relations for other models here
