@@ -278,4 +278,33 @@ model Poc {
 }
 
 
-// Similarly, add relations for other models here
+model DocumentType {
+  id            Int     @id @default(autoincrement())
+  slug          String  @unique
+  name          String
+  description   String?
+  isCommercial  Boolean @default(false)
+  isResidential Boolean @default(false)
+  isDefault     Boolean @default(false)
+  isActive      Boolean @default(true)
+  order         Int     @default(1)
+  group         String  @default("default")
+  section       String  @default("contact")
+}
+// We don't have the beforeValidate hook in Prisma. In Prisma, this kind of logic usually resides in your application layer (for instance, before saving a model). If you need this slug generation, you would typically handle it in the logic before creating/updating the model in the database.
+
+model Document {
+  id            Int      @id @default(autoincrement())
+  originalName  String?
+  key           String?
+  externalUpload Boolean?
+  tags          Json?    // Assuming the JSON here will be represented as Json in Prisma
+  metadata      Json?    // Same assumption as above
+  versionId     String   @map("version_id")
+  location      String
+  isActive      Boolean  @default(true)
+  order         Int      @default(1)
+  test          Int?     // Assuming this is supposed to be an integer based on the Sequelize model
+
+  createdAt     DateTime @default(now()) @map("created_at")
+}
