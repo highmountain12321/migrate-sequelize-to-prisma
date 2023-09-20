@@ -1,3 +1,5 @@
+const prisma = require('../../lib/prisma');
+
 // List
 exports.list = async function(req, res, next) {
     try {

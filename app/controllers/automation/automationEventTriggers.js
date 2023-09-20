@@ -1,4 +1,4 @@
-const prisma = require('./path_to_your_shared_module/prismaClient');
+const prisma = require('../../lib/prisma');
 
 // List
 exports.list = async function(req, res, next) {

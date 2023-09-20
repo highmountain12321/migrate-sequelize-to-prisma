@@ -687,3 +687,60 @@ model Pool {
 
   @@map("pool")
 }
+
+
+model ProjectAttachmentType {
+  id       Int     @id @default(autoincrement())
+  name     String
+  isActive Boolean @default(true)
+
+  @@map("project_attachment_type")
+}
+model ProjectAttachment {
+  id           Int     @id @default(autoincrement())
+  name         String
+  originalName String
+  key          String
+  location     String
+  description  String?
+  isActive     Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+model ProjectBoard {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  isPrimary   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model ProjectComment {
+  id       Int      @id @default(autoincrement())
+  contents String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model ProjectLabel {
+  id       Int     @id @default(autoincrement())
+  name     String
+  color    String
+  isActive Boolean @default(true)
+}
+model ProjectLane {
+  id       Int     @id @default(autoincrement())
+  name     String
+  order    Int
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

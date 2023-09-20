@@ -1,2068 +1,2220 @@
-generator client {
-  provider = "prisma-client-js"
-  output   = "./generated/client"
-}
-
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
-
-model Activity {
-  id         Int      @id @default(autoincrement())
-  name       String?
-  createdAt  DateTime @default(now())
-  userId     Int?
-  contactId  Int?
-  typeId     Int?
-  User       User?    @relation(fields: [userId], references: [id])
-  Contact    Contact? @relation(fields: [contactId], references: [id])
-  Type       ActivityType? @relation(fields: [typeId], references: [id])
-  @@index([userId], name: "userId")
-  @@index([contactId], name: "contactId")
-  @@index([typeId], name: "typeId")
+generator client {
+  provider = "prisma-client-js"
 }
 
-// model User {
-//   id       Int      @id @default(autoincrement())
-//   // Add other user fields as needed
-//   activities Activity[]
-// }
+model activities {
+  id             Int             @id @default(autoincrement())
+  name           String?         @db.VarChar(255)
+  createdAt      DateTime        @db.DateTime(0)
+  userId         Int?
+  contactId      Int?
+  typeId         Int?
+  users          users?          @relation(fields: [userId], references: [id], map: "activities_ibfk_1")
+  contacts       contacts?       @relation(fields: [contactId], references: [id], map: "activities_ibfk_2")
+  activity_types activity_types? @relation(fields: [typeId], references: [id], map: "activities_ibfk_3")
 
-// model Contact {
-//   id       Int      @id @default(autoincrement())
-//   // Add other contact fields as needed
-//   activities Activity[]
-// }
-
-// model ActivityType {
-//   id       Int      @id @default(autoincrement())
-//   // Add other activity type fields as needed
-//   activities Activity[]
-// }
-
-// ... (previous Prisma schema content)
-
-model ActivityType {
-  id          Int      @id @default(autoincrement())
-  slug        String?
-  name        String?
-  description String?
-  activities  Activity[] // Define the reverse relation to the Activity model
+  @@index([contactId], map: "contactId")
+  @@index([typeId], map: "typeId")
+  @@index([userId], map: "userId")
 }
 
-model Adder {
-  id          Int      @id @default(autoincrement())
-  name        String?
-  value       String?
+model activity_types {
+  id          Int          @id @default(autoincrement())
+  slug        String?      @db.VarChar(255)
+  name        String?      @db.VarChar(255)
+  description String?      @db.VarChar(255)
+  activities  activities[]
+}
+
+model adders {
+  id          Int       @id @default(autoincrement())
+  name        String?   @db.VarChar(255)
+  value       String?   @db.VarChar(255)
   quantity    Int?
   isActive    Boolean?
-  description String?
-  group       String?
-  createdAt   DateTime @default(now())
+  description String?   @db.VarChar(255)
+  group       String?   @db.VarChar(255)
+  createdAt   DateTime  @db.DateTime(0)
   contactId   Int?
   userId      Int?
-  test        Boolean?
-  Contact     Contact? @relation(fields: [contactId], references: [id])
-  User        User?    @relation(fields: [userId], references: [id])
-  @@index([contactId], name: "contactId")
-  @@index([userId], name: "userId")
+  test        Int?      @db.TinyInt
+  contacts    contacts? @relation(fields: [contactId], references: [id], map: "adders_ibfk_1")
+  users       users?    @relation(fields: [userId], references: [id], map: "adders_ibfk_2")
+
+  @@index([contactId], map: "contactId")
+  @@index([userId], map: "userId")
 }
 
-model ApiKey {
-  id             Int      @id @default(autoincrement())
-  token          String?
-  count          Int?
-  limit          Int?
-  isActive       Boolean @default(true)
-  createdAt      DateTime @default(now())
-  userId         Int?
-  userGroupId    Int?
-  apiKey         String?
-  requestDate    DateTime?
-  name           String?
-  description    String?
-  organizationId Int     @default(1)
-  sourceId       Int?
-  User           User?        @relation(fields: [userId], references: [id])
-  UserGroup      UserGroup?   @relation(fields: [userGroupId], references: [id])
-  Organization   Organization? @relation(fields: [organizationId], references: [id])
-  Source         ContactSource? @relation(fields: [sourceId], references: [id])
-  @@index([userId], name: "userId")
-  @@index([userGroupId], name: "user_group")
-  @@index([organizationId], name: "organization_fk")
-  @@index([sourceId], name: "source_fk")
+model api_keys {
+  id              Int              @id @default(autoincrement())
+  token           String?          @db.VarChar(255)
+  count           Int?
+  limit           Int?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @db.DateTime(0)
+  userId          Int?
+  userGroupId     Int?
+  apiKey          String?          @db.VarChar(11)
+  requestDate     DateTime?        @db.DateTime(0)
+  name            String?          @db.VarChar(50)
+  description     String?          @db.VarChar(50)
+  organizationId  Int?             @default(1)
+  sourceId        Int?
+  users           users?           @relation(fields: [userId], references: [id], map: "api_keys_ibfk_1")
+  organizations   organizations?   @relation(fields: [organizationId], references: [id], onUpdate: SetNull, map: "organization_fk")
+  contact_sources contact_sources? @relation(fields: [sourceId], references: [id], onUpdate: SetNull, map: "source_fk")
+  user_groups     user_groups?     @relation(fields: [userGroupId], references: [id], onUpdate: SetNull, map: "user_group")
+
+  @@index([organizationId], map: "organization_fk")
+  @@index([sourceId], map: "source_fk")
+  @@index([userId], map: "userId")
+  @@index([userGroupId], map: "user_group")
 }
 
-model AppEmail {
-  id        Int      @id @default(autoincrement())
-  email     String?
-  provider  String?
-  providerId String?
-  isActive  Boolean?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userId    Int?
-  User      User? @relation(fields: [userId], references: [id])
-  @@index([userId], name: "userId")
+model app_emails {
+  id         Int      @id @default(autoincrement())
+  email      String?  @db.VarChar(255)
+  provider   String?  @db.VarChar(255)
+  providerId String?  @db.VarChar(255)
+  isActive   Boolean?
+  createdAt  DateTime @db.DateTime(0)
+  updatedAt  DateTime @db.DateTime(0)
+  userId     Int?
+  users      users?   @relation(fields: [userId], references: [id], map: "app_emails_ibfk_1")
+
+  @@index([userId], map: "userId")
 }
 
-model AppEventCategory {
+model app_event_categories {
   id          Int      @id @default(autoincrement())
-  name        String?
-  description String?
-  slug        String?
+  name        String?  @db.VarChar(255)
+  description String?  @db.VarChar(255)
+  slug        String?  @db.VarChar(255)
   isActive    Boolean?
 }
 
-// ... (previous Prisma schema content)
-
-model AppEventLevel {
-  id       Int      @id @default(autoincrement())
-  isActive Boolean?
+model app_event_levels {
+  id        Int      @id @default(autoincrement())
+  isActive  Boolean?
   isDefault Boolean?
-  name     String?
-  slug     String?
-  events   AppEvent[] // Define the reverse relation to the AppEvent model
+  name      String?  @db.VarChar(255)
+  slug      String?  @db.VarChar(255)
 }
 
-model AppEventType {
+model app_event_types {
   id          Int      @id @default(autoincrement())
-  name        String?
-  description String?
-  slug        String?
+  name        String?  @db.VarChar(255)
+  description String?  @db.VarChar(255)
+  slug        String?  @db.VarChar(255)
   isActive    Boolean?
   categoryId  Int?
-  category    AppEventCategory? @relation(fields: [categoryId], references: [id])
 }
 
-model AppEvent {
-  id            Int      @id @default(autoincrement())
+model app_events {
+  id            Int            @id @default(autoincrement())
   isDismissed   Boolean?
-  comment       String?
-  createdAt     DateTime @default(now())
+  comment       String?        @db.VarChar(255)
+  createdAt     DateTime       @db.DateTime(0)
   levelId       Int?
   typeId        Int?
   contactId     Int?
   userId        Int?
   closingFormId Int?
-  contact       Contact? @relation(fields: [contactId], references: [id])
-  user          User?    @relation(fields: [userId], references: [id])
-  closingForm   ClosingForm? @relation(fields: [closingFormId], references: [id])
-  level         AppEventLevel? @relation(fields: [levelId], references: [id])
-  type          AppEventType? @relation(fields: [typeId], references: [id])
-  @@index([contactId], name: "contactId")
-  @@index([userId], name: "userId")
-  @@index([closingFormId], name: "closingFormId")
+  contacts      contacts?      @relation(fields: [contactId], references: [id], map: "app_events_ibfk_1")
+  users         users?         @relation(fields: [userId], references: [id], map: "app_events_ibfk_2")
+  closing_forms closing_forms? @relation(fields: [closingFormId], references: [id], map: "app_events_ibfk_3")
+
+  @@index([closingFormId], map: "closingFormId")
+  @@index([contactId], map: "contactId")
+  @@index([userId], map: "userId")
 }
 
-model AppPhone {
-  id             Int      @id @default(autoincrement())
-  phone          String?
-  provider       String?
-  providerPhoneId String?
-  isActive       Boolean?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  userId         Int?
-  user           User? @relation(fields: [userId], references: [id])
-  @@index([userId], name: "userId")
+model app_phones {
+  id              Int      @id @default(autoincrement())
+  phone           String?  @db.VarChar(255)
+  provider        String?  @db.VarChar(255)
+  providerPhoneId String?  @db.VarChar(255)
+  isActive        Boolean?
+  createdAt       DateTime @db.DateTime(0)
+  updatedAt       DateTime @db.DateTime(0)
+  userId          Int?
+  users           users?   @relation(fields: [userId], references: [id], map: "app_phones_ibfk_1")
+
+  @@index([userId], map: "userId")
 }
 
-model AppointmentType {
-  id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  name        String
-  description String?
-  isDefault   Boolean?
-  isActive    Boolean?
-  order       Int?
-  add         Int?
-  color       Int?
-  group       String?
-}
-
-// ... (previous Prisma schema content)
-
-model Appointment {
-  id            Int      @id @default(autoincrement())
-  fromDate      DateTime?
-  toDate        DateTime?
-  metadata      Json?
-  cancelledAt   DateTime?
-  isActive      Boolean @default(true)
-  group         String?
-  createdAt     DateTime @default(now())
-  contactId     Int?
-  userId        Int?
-  typeId        Int?
-  tzOffset      Int?
-  timezone      Json?
-  timezoneOffset String?
-  endDate       String?
-  startDate     String?
-  test          Boolean?
-  utcStartDateTime DateTime?
-  contact       Contact?       @relation(fields: [contactId], references: [id])
-  user          User?          @relation(fields: [userId], references: [id])
-  type          AppointmentType? @relation(fields: [typeId], references: [id])
-  @@index([contactId], name: "contactId")
-  @@index([userId], name: "userId")
-  @@index([typeId], name: "typeId")
-}
-
-model AutoActionType {
-  id       Int      @id @default(autoincrement())
-  name     String?
-  isActive Boolean?
-}
-
-model AutoAction {
-  id          Int      @id @default(autoincrement())
-  name        String?
-  description String?
-  isActive    Boolean?
-  typeId      Int?
-  fn          String?
-  type        AutoActionType? @relation(fields: [typeId], references: [id])
-}
-
-model AutoAutomationLog {
-  id               Int      @id @default(autoincrement())
-  log              String?
-  isError          Boolean?
-  createdAt        DateTime @default(now())
-  autoAutomationId Int?
-  autoAutomation   AutoAutomation? @relation(fields: [autoAutomationId], references: [id])
-  @@index([autoAutomationId], name: "autoAutomationId")
-}
-
-model AutoAutomation {
-  id             Int      @id @default(autoincrement())
-  name           String?
-  isPrivate      Boolean?
-  isActive       Boolean @default(true)
-  lastRunDate    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  userId         Int?
-  targetUserId   Int?
-  targetGroupId  Int?
-  creatorId      Int?
-  phoneId        Int?
-  emailId        Int?
-  actionId       Int?
-  triggerId      Int?
-  contactSourceId Int?
-  twilioFlowId   String?
-  phoneNumber    String?
-  targetUrl      String?
-  user           User?            @relation(fields: [userId], references: [id])
-  contactSource  ContactSource?   @relation(fields: [contactSourceId], references: [id])
-}
-
-model AutoEventTriggerAutoAction {
-  autoEventTriggerId Int
-  autoActionId       Int
-  @@id([autoEventTriggerId, autoActionId])
-  autoEventTrigger   AutoEventTrigger @relation(fields: [autoEventTriggerId], references: [id])
-  autoAction         AutoAction       @relation(fields: [autoActionId], references: [id])
-}
-
-// ... (previous Prisma schema content)
-
-// ... (previous Prisma schema content)
-
-model AutoEventTriggerType {
-  id       Int      @id @default(autoincrement())
-  name     String?
-  isActive Boolean?
-}
-
-model AutoEventTrigger {
-  id          Int      @id @default(autoincrement())
-  name        String?
-  description String?
-  isActive    Boolean?
-  typeId      Int?
-  type        AutoEventTriggerType? @relation(fields: [typeId], references: [id])
-}
-
-model Calendar {
-  id         Int      @id @default(autoincrement())
-  name       String?
-  calendarId Int?
-  isActive   Boolean?
-  createdAt  DateTime @default(now())
-  userId     Int?
-  user       User?    @relation(fields: [userId], references: [id])
-  @@index([userId], name: "userId")
-}
-
-model CanvasAreaCoord {
-  id                Int      @id @default(autoincrement())
-  lat               Float    @db.Double
-  lng               Float    @db.Double
-  canvasUserAreaId  Int?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  canvasUserArea    CanvasUserArea? @relation(fields: [canvasUserAreaId], references: [id])
-  @@index([canvasUserAreaId], name: "canvas_user_area_id")
-}
-
-model CanvasArea {
-  id         Int      @id @default(autoincrement())
-  areas      String?
-  isActive   Boolean @default(true)
-  group      String?
-  isDefault  Boolean @default(false)
-  order      Int     @default(1)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
-
-model CanvasMarker {
-  id          Int      @id @default(autoincrement())
-  name        String
-  slug        String?
-  markerUrl   String
-  isActive    Boolean @default(true)
-  group       String?
-  isDefault   Boolean @default(false)
-  order       Int     @default(1)
-  @@unique([name], name: "name")
-  @@unique([markerUrl], name: "marker_url")
-  @@unique([slug], name: "slug")
-}
-
-model CanvasUserArea {
-  id      Int      @id @default(autoincrement())
-  userId  Int?
-  coords  Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user    User?    @relation(fields: [userId], references: [id])
-  @@index([userId], name: "userId")
-}
-
-// ... (previous Prisma schema content)
-
-// ... (previous Prisma schema content)
-
-model ClosingFormStatus {
-  id        Int      @id @default(autoincrement())
-  name      String?
-  isActive  Boolean?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  isDefault Boolean?
-  slug      String?
-}
-
-model ClosingFormUpdateType {
-  id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  name        String
-  description String?
-  isDefault   Boolean?
-  isActive    Boolean?
-  order       Int?
-  group       String?
-  section     String?
-  isVisible   Boolean?
-}
-
-model ClosingFormUpdate {
-  id            Int      @id @default(autoincrement())
-  note          String?
-  tags          Json?
-  group         String?
-  createdAt     DateTime @default(now())
-  closingFormId Int?
-  userId        Int?
-  typeId        Int?
-  closingForm   ClosingForm?      @relation(fields: [closingFormId], references: [id])
-  user          User?             @relation(fields: [userId], references: [id])
-  type          ClosingFormUpdateType? @relation(fields: [typeId], references: [id])
-}
-
-model ClosingForm {
-  id             Int       @id @default(autoincrement())
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  contactId      Int?
-  submittedById  Int?
-  isApproved     Boolean?
-  dateApproved   DateTime?
-  updateId       Int?
-  resubmitDate   DateTime?
-  isActive       Boolean   @default(true)
-  partnerId      Int?
-  statusId       Int?
-  organizationId Int?
-  taxReviewAddon Boolean?
-  contact        Contact?    @relation(fields: [contactId], references: [id])
-  submittedBy    User?       @relation(fields: [submittedById], references: [id])
-  status         ClosingFormStatus? @relation(fields: [statusId], references: [id])
-  update         ClosingFormUpdate? @relation(fields: [updateId], references: [id])
-  partner        Partner?   @relation(fields: [partnerId], references: [id])
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-}
-
-model ClosingformCommentType {
-  id        Int      @id @default(autoincrement())
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  isActive  Boolean?
-  isDefault Boolean?
-}
-
-// ... (previous Prisma schema content)
-
-// ... (previous Prisma schema content)
-
-model ClosingformComment {
-  id            Int      @id @default(autoincrement())
-  comment       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  closingFormId Int?
-  userId        Int?
-  typeId        Int?
-  isActive      Boolean?
-  user          User?               @relation(fields: [userId], references: [id])
-  type          ClosingformCommentType? @relation(fields: [typeId], references: [id])
-  closingForm   ClosingForm?        @relation(fields: [closingFormId], references: [id])
-}
-
-model CommercialPocPosition {
-  id       Int      @id @default(autoincrement())
-  name     String?
-  isDefault Boolean?
-  isActive Boolean?
-  order    Int?
-}
-
-model CommercialPoc {
-  id             Int      @id @default(autoincrement())
-  firstName      String?
-  lastName       String?
-  primaryPhone   String?
-  primaryEmail   String?
-  test           Boolean?
-  metadata       Json?
-  isActive       Boolean   @default(true)
-  group          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  contactId      Int?
-  positionId     Int?
-  contact        Contact?   @relation(fields: [contactId], references: [id])
-  position       CommercialPocPosition? @relation(fields: [positionId], references: [id])
-}
-
-model CompanyContactTemp {
-  id               Int      @id @default(autoincrement())
-  companyName      String?
-  pocFirstName     String?
-  pocRole          String?
-  pocLastName      String?
-  pocEmail         String?
-  companyWebsite   String?
-  pocPrimaryPhone  String?
-  companyAddress1  String?
-  companyAddress2  String?
-  companyCity      String?
-  companyState     String?
-  companyPostalCode String?
-  solar            Boolean?
-  turbine          Boolean?
-  isActive         Boolean   @default(true)
-  group            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
-
-model CompanyPocTemp {
-  id               Int      @id @default(autoincrement())
-  companyName      String?
-  pocFirstName     String?
-  pocRole          String?
-  pocLastName      String?
-  pocEmail         String?
-  pocPrimaryPhone  String?
-  companyAddress1  String?
-  companyAddress2  String?
-  companyCity      String?
-  companyState     String?
-  companyPostalCode String?
-  solar            Boolean?
-  turbine          Boolean?
-  isActive         Boolean   @default(true)
-  group            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  userId           Int?
-  companyWebsite   String?
-  user             User? @relation(fields: [userId], references: [id])
-}
-
-// ... (previous Prisma schema content)
-
-// ... (previous Prisma schema content)
-
-model ContactActionType {
-  id       Int      @id @default(autoincrement())
-  name     String   @db.VarChar(255)
-  isDefault Boolean  @db.TinyInt(1)
-  isActive Boolean  @db.TinyInt(1)
-  createdAt DateTime @default(now()) @db.DateTime
-}
-
-model ContactAction {
-  id        Int       @id @default(autoincrement())
-  createdAt DateTime  @default(now()) @db.DateTime
-  contactId Int?
-  typeId    Int?
-  contact   Contact?  @relation(fields: [contactId], references: [id])
-  type      ContactActionType? @relation(fields: [typeId], references: [id])
-}
-
-model ContactAppointment {
-  createdAt    DateTime @default(now()) @db.DateTime
-  updatedAt    DateTime @updatedAt @db.DateTime
-  contactId    Int
-  appointmentId Int
-  contact      Contact @relation(fields: [contactId], references: [id])
-  appointment  Appointment @relation(fields: [appointmentId], references: [id])
-  @@id([contactId, appointmentId])
-}
-
-model ContactAutomationRun {
-  id           Int       @id @default(autoincrement())
-  createdAt    DateTime  @default(now()) @db.DateTime
-  contactId    Int
-  automationId Int
-  contact      Contact   @relation(fields: [contactId], references: [id])
-}
-
-model ContactCommentType {
-  id        Int      @id @default(autoincrement())
-  type      String?  @db.VarChar(255)
-  createdAt DateTime @default(now()) @db.DateTime
-  updatedAt DateTime @updatedAt @db.DateTime
-}
-
-model ContactComment {
-  id        Int       @id @default(autoincrement())
-  comment   String?   @db.VarChar(255)
-  createdAt DateTime  @default(now()) @db.DateTime
-  updatedAt DateTime  @updatedAt @db.DateTime
-  contactId Int?
-  userId    Int?
-  user      User?     @relation(fields: [userId], references: [id])
-}
-
-model ContactEventType {
-  id          Int     @id @default(autoincrement())
-  name        String? @db.VarChar(255)
-  description String? @db.VarChar(255)
-  isActive    Boolean? @db.TinyInt(1)
-  isActionable Boolean? @db.TinyInt(1)
-}
-
-// ... (previous Prisma schema content)
-
-// ... (previous Prisma schema content)
-
-model ContactEvent {
-  id           Int       @id @default(autoincrement())
-  system       Boolean?  @db.TinyInt(1)
-  processDate  DateTime? @db.DateTime
-  test         Boolean?  @db.TinyInt(1)
-  createdAt    DateTime  @default(now()) @db.DateTime
-  typeId       Int?
-  contactId    Int?
-  userId       Int?
-  type         ContactEventType? @relation(fields: [typeId], references: [id])
-  contact      Contact?         @relation(fields: [contactId], references: [id])
-  user         User?            @relation(fields: [userId], references: [id])
-}
-
-model ContactSource {
-  id          Int      @id @default(autoincrement())
-  slug        String   @db.VarChar(255)
-  name        String?  @db.VarChar(255)
-  description String?  @db.VarChar(255)
-  isDefault   Boolean? @db.TinyInt(1)
-  isActive    Boolean  @db.TinyInt(1) @default(true)
-  order       Int?     @db.Int(11)
-  group       String?  @db.VarChar(255)
-}
-
-model ContactStage {
-  id          Int      @id @default(autoincrement())
-  slug        String   @db.VarChar(255)
-  name        String?  @db.VarChar(255)
-  description String?  @db.VarChar(255)
-  isDefault   Boolean? @db.TinyInt(1)
-  isActive    Boolean? @db.TinyInt(1)
-  order       Int?     @db.Int(11)
-  color       String?  @db.VarChar(11)
-  @@unique([slug])
-}
-
-model ContactStatus {
-  id        Int     @id @default(autoincrement())
-  naem      Float?  // Typo in the table definition, not sure what it represents
-  markerUrl Float?  // Typo in the table definition, not sure what it represents
-}
-
-model ContactSystem {
-  id        Int      @id @default(autoincrement())
-  size      Int?     @db.Int(11)
-  createdAt DateTime @default(now()) @db.DateTime
-  updatedAt DateTime @updatedAt @db.DateTime
-  contactId Int?     @db.Int(11)
-  contact   Contact? @relation(fields: [contactId], references: [id])
-}
-
-model ContactType {
-  id          Int      @id @default(autoincrement())
-  slug        String   @db.VarChar(255)
-  name        String?  @db.VarChar(255)
-  description String?  @db.VarChar(255)
-  isDefault   Boolean? @db.TinyInt(1)
-  isActive    Boolean  @db.TinyInt(1) @default(true)
-  order       Int?     @db.Int(11)
-  group       String?  @db.VarChar(255)
-  color       String?  @db.VarChar(11)
-  @@unique([slug])
-}
-
-// ... (previous Prisma schema content)
-
-// ... (previous Prisma schema content)
-
-model ContactUpdate {
-  id             Int       @id @default(autoincrement())
-  note           String?   @db.Text
-  tags           Json?     @db.Json
-  group          String?   @db.VarChar(255)
-  createdAt      DateTime  @default(now()) @db.DateTime
-  toId           Int?      @db.Int(11)
-  appointmentId  Int?      @db.Int(11)
-  contactId      Int?      @db.Int(11)
-  userId         Int?      @db.Int(11)
-  test           Int?      @db.TinyInt(4)
-  contact        Contact?  @relation(fields: [contactId], references: [id])
-  appointment    Appointment? @relation(fields: [appointmentId], references: [id])
-  user           User?     @relation(fields: [userId], references: [id])
-  to             Option?   @relation(fields: [toId], references: [id])
-}
-
-model Contact {
-  id                  Int        @id @default(autoincrement())
-  firstName           String?    @db.VarChar(255)
-  lastName            String?    @db.VarChar(255)
-  address1            String?    @db.VarChar(255)
-  address2            String?    @db.VarChar(255)
-  city                String?    @db.VarChar(255)
-  state               String?    @db.VarChar(255)
-  postalCode          String?    @db.VarChar(255)
-  interests           String?    @db.LongText
-  isSpanishSpeaker    Boolean    @db.TinyInt(1) @default(false)
-  primaryPhone        String?    @db.VarChar(255)
-  secondaryPhone      String?    @db.VarChar(255)
-  email               String?    @db.VarChar(255)
-  avgMonthlyBill      String?    @db.Text
-  exactMonthlyKW      Json?      @db.Json
-  closeDate           DateTime?  @db.DateTime
-  leadDate            DateTime?  @db.DateTime
-  assignDate          DateTime?  @db.DateTime
-  opportunityDate     DateTime?  @db.DateTime
-  sitDate             DateTime?  @db.DateTime
-  dropDate            DateTime?  @db.DateTime
-  isActive            Boolean    @db.TinyInt(1) @default(false)
-  organizationId      Int?       @db.Int(11)
-  createdAt           DateTime   @default(now()) @db.DateTime
-  updatedAt           DateTime   @updatedAt @db.DateTime
-  partnerProposalId   Int?       @db.Int(11)
-  lenderProposalId    Int?       @db.Int(11)
-  assignedById        Int?       @db.Int(11)
-  sourceId            Int?       @db.Int(11)
-  typeId              Int?       @db.Int(11)
-  genTypeId           Int?       @db.Int(11)
-  hoaId               Int?       @db.Int(11)
-  utilityProvider     String?    @db.Text
-  roofTypeId          Int?       @db.Int(11)
-  test                Int?       @db.TinyInt(4)
-  busName             String?    @db.VarChar(200)
-  busWebsite          String?    @db.Text
-  tzOffset            String?    @db.VarChar(20)
-  updateId            Int?       @db.Int(11)
-  stageId             Int        @db.Int(11) @default(1)
-  projectId           Int?       @db.Int(11)
-  propertyTypeId      Int?       @db.Int(11)
-  meta                Json?      @db.Json
-  sourceNotes         String?    @db.Text
-  stage               ContactStage? @relation(fields: [stageId], references: [id])
-  organization        Organization? @relation(fields: [organizationId], references: [id])
-  partnerProposal     PartnerProposal? @relation(fields: [partnerProposalId], references: [id])
-  lenderProposal      LenderProposal? @relation(fields: [lenderProposalId], references: [id])
-  assignedBy          User?     @relation(fields: [assignedById], references: [id])
-  source              ContactSource? @relation(fields: [sourceId], references: [id])
-  type                ContactType? @relation(fields: [typeId], references: [id])
-  genType             GenType?  @relation(fields: [genTypeId], references: [id])
-  hoa                 Hoa?      @relation(fields: [hoaId], references: [id])
-  roofType            RoofType? @relation(fields: [roofTypeId], references: [id])
-  update              ContactUpdate? @relation(fields: [updateId], references: [id])
-  project             Project?  @relation(fields: [projectId], references: [id])
-  propertyType        PropertyType? @relation(fields: [propertyTypeId], references: [id])
-}
-
-// ... (previous Prisma schema content)
-
-model ContactsCopy {
-  id                  Int        @id @default(autoincrement())
-  firstName           String?    @db.VarChar(255)
-  lastName            String?    @db.VarChar(255)
-  address1            String?    @db.VarChar(255)
-  address2            String?    @db.VarChar(255)
-  city                String?    @db.VarChar(255)
-  state               String?    @db.VarChar(255)
-  postalCode          String?    @db.VarChar(255)
-  interests           String?    @db.LongText
-  isSpanishSpeaker    Boolean    @db.TinyInt(1) @default(false)
-  primaryPhone        String?    @db.VarChar(255)
-  secondaryPhone      String?    @db.VarChar(255)
-  email               String?    @db.VarChar(255)
-  avgMonthlyBill      String?    @db.Text
-  exactMonthlyKW      Json?      @db.Json
-  closeDate           DateTime?  @db.DateTime
-  leadDate            DateTime?  @db.DateTime
-  assignDate          DateTime?  @db.DateTime
-  opportunityDate     DateTime?  @db.DateTime
-  sitDate             DateTime?  @db.DateTime
-  dropDate            DateTime?  @db.DateTime
-  isActive            Boolean    @db.TinyInt(1) @default(false)
-  organizationId      Int?       @db.Int(11)
-  createdAt           DateTime   @default(now()) @db.DateTime
-  updatedAt           DateTime   @updatedAt @db.DateTime
-  partnerProposalId   Int?       @db.Int(11)
-  lenderProposalId    Int?       @db.Int(11)
-  assignedById        Int?       @db.Int(11)
-  sourceId            Int?       @db.Int(11)
-  typeId              Int?       @db.Int(11)
-  genTypeId           Int?       @db.Int(11)
-  hoaId               Int?       @db.Int(11)
-  utilityProvider     String?    @db.Text
-  roofTypeId          Int?       @db.Int(11)
-  test                Int?       @db.TinyInt(4)
-  busName             String?    @db.VarChar(200)
-  busWebsite          String?    @db.Text
-  tzOffset            String?    @db.VarChar(20)
-  updateId            Int?       @db.Int(11)
-  stageId             Int        @db.Int(11) @default(1)
-  projectId           Int?       @db.Int(11)
-  propertyTypeId      Int?       @db.Int(11)
-  meta                Json?      @db.Json
-  stage               ContactStage? @relation(fields: [stageId], references: [id])
-  organization        Organization? @relation(fields: [organizationId], references: [id])
-  partnerProposal     PartnerProposal? @relation(fields: [partnerProposalId], references: [id])
-  lenderProposal      LenderProposal? @relation(fields: [lenderProposalId], references: [id])
-  assignedBy          User?     @relation(fields: [assignedById], references: [id])
-  source              ContactSource? @relation(fields: [sourceId], references: [id])
-  type                ContactType? @relation(fields: [typeId], references: [id])
-  genType             GenType?  @relation(fields: [genTypeId], references: [id])
-  hoa                 Hoa?      @relation(fields: [hoaId], references: [id])
-  roofType            RoofType? @relation(fields: [roofTypeId], references: [id])
-  update              ContactUpdate? @relation(fields: [updateId], references: [id])
-  project             Project?  @relation(fields: [projectId], references: [id])
-  propertyType        PropertyType? @relation(fields: [propertyTypeId], references: [id])
-}
-
-// Design Requests
-model DesignRequest {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Define your other fields here
-}
-
-// Document Types
-model DocumentType {
-  id           Int      @id @default(autoincrement())
-  slug         String   @unique
-  name         String
-  description  String?
+model appointment_types {
+  id           Int            @id @default(autoincrement())
+  slug         String         @unique(map: "slug") @db.VarChar(255)
+  name         String         @db.VarChar(255)
+  description  String?        @db.VarChar(255)
   isDefault    Boolean?
   isActive     Boolean?
   order        Int?
-  group        String?
-  section      String?
-  isCommercial Boolean?
-  isResidential Boolean?
-  // Define your other fields here
+  add          Int?
+  color        Int?
+  group        String?        @db.VarChar(255)
+  appointments appointments[]
 }
 
-// Documents
-model Document {
-  id            Int      @id @default(autoincrement())
-  originalName  String?
-  key           String?
-  tags          Json?
-  metadata      Json?
-  versionId     String
-  location      String
-  isActive      Boolean @default(true)
-  order         Int     @default(1)
-  createdAt     DateTime @default(now())
-  contactId     Int?
-  typeId        Int?
-  userId        Int?
-  partnerId     Int?
-  externalUpload Boolean?
-  test          Int?
-  
-  // Relationships
-  contact       Contact?       @relation(fields: [contactId], references: [id])
-  type          DocumentType?  @relation(fields: [typeId], references: [id])
-  user          User?          @relation(fields: [userId], references: [id])
-  partner       Partner?       @relation(fields: [partnerId], references: [id])
-  // Define your other fields here
+model appointments {
+  id                  Int                   @id @default(autoincrement())
+  fromDate            DateTime?             @db.DateTime(0)
+  toDate              DateTime?             @db.DateTime(0)
+  metadata            String?               @db.LongText
+  cancelledAt         DateTime?             @db.DateTime(0)
+  isActive            Boolean               @default(true)
+  group               String?               @db.VarChar(255)
+  createdAt           DateTime              @db.DateTime(0)
+  contactId           Int?
+  userId              Int?
+  typeId              Int?
+  tzOffset            Int?
+  timezone            String?               @db.LongText
+  timezoneOffset      String?               @db.VarChar(255)
+  endDate             String?               @db.VarChar(255)
+  startDate           String?               @db.VarChar(255)
+  test                Boolean?
+  utcStartDateTime    DateTime?             @db.DateTime(0)
+  users               users?                @relation(fields: [userId], references: [id], map: "appointments_ibfk_65")
+  appointment_types   appointment_types?    @relation(fields: [typeId], references: [id], map: "appointments_ibfk_66")
+  contact_appointment contact_appointment[]
+  contact_updates     contact_updates[]
+  internal_updates    internal_updates[]
+
+  @@index([typeId], map: "typeId")
+  @@index([userId], map: "userId")
 }
 
-// Residential Batteries
-model ResidentialBattery {
-  id                   Int     @id @default(autoincrement())
-  partNumber           String?
-  specSheet            String?
-  usableEnergy         String?
-  chargePower          String?
-  dischargePower       String?
-  peakDischargePower   String?
-  peakDischargeDuration String?
-  productImagePath     String?
-  manufacturerId       Int?
-  
-  // Define your other fields here
+model auto_action_types {
+  id       Int      @id @default(autoincrement())
+  name     String?  @db.VarChar(255)
+  isActive Boolean?
 }
 
-// Equipment Residential Battery Partner
-model EquipmentResidentialBatteryPartner {
-  battery_id Int
-  partner_id Int
-
-  @@id([battery_id, partner_id])
-  
-  // Relationships
-  battery  ResidentialBattery @relation(fields: [battery_id], references: [id])
-  partner  Partner           @relation(fields: [partner_id], references: [id])
+model auto_actions {
+  id                             Int                              @id @default(autoincrement())
+  name                           String?                          @db.VarChar(255)
+  description                    String?                          @db.VarChar(255)
+  isActive                       Boolean?
+  typeId                         Int?
+  fn                             String?                          @db.VarChar(255)
+  auto_event_trigger_auto_action auto_event_trigger_auto_action[]
 }
 
-// Equipment Residential Inverter Partner
-model EquipmentResidentialInverterPartner {
-  module_id Int
-  partner_id Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+model auto_automation_logs {
+  id               Int               @id @default(autoincrement())
+  log              String?           @db.VarChar(255)
+  isError          Boolean?
+  createdAt        DateTime          @db.DateTime(0)
+  autoAutomationId Int?
+  auto_automations auto_automations? @relation(fields: [autoAutomationId], references: [id], map: "auto_automation_logs_ibfk_1")
 
-  @@id([module_id, partner_id])
-
-  // Relationships
-  module  EquipmentResidentialInverter @relation(fields: [module_id], references: [id])
-  partner Partner                    @relation(fields: [partner_id], references: [id])
+  @@index([autoAutomationId], map: "autoAutomationId")
 }
 
-// Equipment Residential Inverters
-model EquipmentResidentialInverter {
-  id                      Int      @id @default(autoincrement())
-  display_name            String?
-  model                   String?
-  type                    String?
-  efficiency              String?
-  spec_sheet              String?
-  man_part_num            String?
-  ced_part_num            String?
-  soligent_part_num       String?
-  jexpro_num              String?
-  rated_ac                Int?
-  max_ac                  Int?
-  max_dc_input            String?
-  max_connected_panels    Int?
-  number_of_mppt          Int?
-  inputs_per_mppt         String?
-  max_input_voltage       Int?
-  max_input_current       Int?
-  max_output_current_v    String?
-  min_breaker_rating      String?
-  cec_weighted_eff_percent String?
-  nominal_input_voltage   String?
-  nominal_dc_input_voltage String?
-  optimizer_max_output_current String?
-  max_string_wattage_size String?
-  under_module_writing    String?
-  optimizers              String?
-  rated_dc_input_current  String?
-  max_string_size         String?
-  min_string_size         String?
-  max_output_current      Int?
-  created                 String?
-  modified                String?
-  expired                 String?
-  part_number             String?
-  max_input_power         Int?
-  nominal_input_current   Int?
-  max_input_string_size   String?
-  max_input_string_quantity String?
-  max_input_string_power  String?
-  max_output_voltage      Int?
-  max_output_wattage      Int?
-  min_output              String?
-  battery_ready_inverter String?
-  cad_type                String?
-  min_modules_per_string  Int?
-  min_mpp_voltage         Int?
-  max_voltage_drop        Float?
-  combo                   String?
-  auto_select             String?
-  use_png_spec            String?
-  includes_ev_charger     String?
-  manufacturername        String?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt @default(now())
-  manufacturer_id         Int?
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model auto_automations {
+  id                   Int                    @id @default(autoincrement())
+  name                 String?                @db.VarChar(255)
+  isPrivate            Boolean?
+  isActive             Boolean                @default(true)
+  lastRunDate          DateTime?              @db.DateTime(0)
+  createdAt            DateTime               @db.DateTime(0)
+  updatedAt            DateTime               @db.DateTime(0)
+  userId               Int?
+  targetUserId         Int?
+  targetGroupId        Int?
+  creatorId            Int?
+  phoneId              Int?
+  emailId              Int?
+  actionId             Int?
+  triggerId            Int?
+  contactSourceId      Int?
+  twilioFlowId         String?                @db.Text
+  phoneNumber          String?                @db.VarChar(20)
+  targetUrl            String?                @db.Text
+  auto_automation_logs auto_automation_logs[]
+  users                users?                 @relation(fields: [userId], references: [id], map: "auto_automations_ibfk_1")
+  contact_sources      contact_sources?       @relation(fields: [contactSourceId], references: [id], onUpdate: SetNull, map: "auto_contactSourceId")
 
-  // Relationships
-  manufacturer Manufacturer?             @relation(fields: [manufacturer_id], references: [id])
-  partners     EquipmentResidentialInverterPartner[]
+  @@index([contactSourceId], map: "auto_contactSourceId")
+  @@index([userId], map: "userId")
 }
 
-// Equipment Residential Module Partner
-model EquipmentResidentialModulePartner {
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt @default(now())
-  module_id  Int
-  partner_id Int
+model auto_event_trigger_auto_action {
+  autoEventTriggerId  Int
+  autoActionId        Int
+  auto_event_triggers auto_event_triggers @relation(fields: [autoEventTriggerId], references: [id], onDelete: Cascade, map: "auto_event_trigger_auto_action_ibfk_1")
+  auto_actions        auto_actions        @relation(fields: [autoActionId], references: [id], onDelete: Cascade, map: "auto_event_trigger_auto_action_ibfk_2")
 
-  @@id([module_id, partner_id])
-
-  // Relationships
-  module  EquipmentResidentialModule @relation(fields: [module_id], references: [id])
-  partner Partner                   @relation(fields: [partner_id], references: [id])
+  @@id([autoEventTriggerId, autoActionId])
+  @@index([autoActionId], map: "autoActionId")
 }
 
-// Equipment Residential Modules
-model EquipmentResidentialModule {
-  id                  Int       @id @default(autoincrement())
-  length              Float?
-  width               Float?
-  name                String?
-  display_name        String?
-  wattage             Float?
-  degradation         Float?
-  spec_sheet          String?
-  part_number         String?
-  ced_part_number     String?
-  cad_part_number     String?
-  max_power_voltage   Float?
-  max_power_current   Float?
-  open_circuit_voltage Float?
-  short_circuit_current Float?
-  ac_module           String?
-  dwg_file            String?
-  created             String?
-  modified            String?
-  expired             String?
-  cell_quantity       Int?
-  max_fuse_rating     Int?
-  thickness           Float?
-  backsheet_color     String?
-  frame_color         String?
-  cad_ready           String?
-  weight              Float?
-  spec_images         Json?
-  manufacturer_id     Int?
-  use_png_spec        String?
-  manufacturer        Manufacturer? @relation(fields: [manufacturer_id], references: [id])
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt @default(now())
-  type                Int?
+model auto_event_trigger_types {
+  id       Int      @id @default(autoincrement())
+  name     String?  @db.VarChar(255)
+  isActive Boolean?
 }
 
-// Gen Types
-model GenType {
+model auto_event_triggers {
+  id                             Int                              @id @default(autoincrement())
+  name                           String?                          @db.VarChar(255)
+  description                    String?                          @db.VarChar(255)
+  isActive                       Boolean?
+  typeId                         Int?
+  auto_event_trigger_auto_action auto_event_trigger_auto_action[]
+}
+
+model calendars {
+  id         Int      @id @default(autoincrement())
+  name       String?  @db.VarChar(255)
+  calendarId Int?
+  isActive   Boolean?
+  createdAt  DateTime @db.DateTime(0)
+  userId     Int?
+  users      users?   @relation(fields: [userId], references: [id], map: "calendars_ibfk_1")
+
+  @@index([userId], map: "userId")
+}
+
+model canvas_area_coords {
+  id                  Int                @id @default(autoincrement())
+  lat                 Float
+  lng                 Float
+  canvas_user_area_id Int?
+  createdAt           DateTime           @db.DateTime(0)
+  updatedAt           DateTime           @db.DateTime(0)
+  canvas_user_areas   canvas_user_areas? @relation(fields: [canvas_user_area_id], references: [id], map: "canvas_area_coords_ibfk_1")
+
+  @@index([canvas_user_area_id], map: "canvas_user_area_id")
+}
+
+model canvas_areas {
+  id        Int      @id @default(autoincrement())
+  areas     String?  @db.VarChar(255)
+  isActive  Boolean  @default(true)
+  group     String?  @default("0") @db.VarChar(255)
+  isDefault Boolean  @default(false)
+  order     Int      @default(1)
+  createdAt DateTime @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
+}
+
+model canvas_markers {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique(map: "name") @db.VarChar(255)
+  slug       String?  @unique(map: "slug") @db.VarChar(255)
+  marker_url String   @unique(map: "marker_url") @db.VarChar(255)
+  isActive   Boolean  @default(true)
+  group      String?  @db.VarChar(255)
+  isDefault  Boolean? @default(false)
+  order      Int?     @default(1)
+}
+
+model canvas_user_areas {
+  id                 Int                  @id @default(autoincrement())
+  userId             Int?
+  coords             String?              @db.LongText
+  createdAt          DateTime             @db.DateTime(0)
+  updatedAt          DateTime             @db.DateTime(0)
+  canvas_area_coords canvas_area_coords[]
+  users              users?               @relation(fields: [userId], references: [id], map: "canvas_user_areas_ibfk_1")
+
+  @@index([userId], map: "userId")
+}
+
+model closing_form_statuses {
+  id            Int             @id @default(autoincrement())
+  name          String?         @db.VarChar(255)
+  isActive      Boolean?
+  createdAt     DateTime        @db.DateTime(0)
+  updatedAt     DateTime        @db.DateTime(0)
+  isDefault     Boolean?
+  slug          String?         @db.VarChar(255)
+  closing_forms closing_forms[]
+}
+
+model closing_form_update_types {
   id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  name        String?
-  isActive    Boolean  @default(true)
+  slug        String   @unique(map: "slug") @db.VarChar(255)
+  name        String   @db.VarChar(255)
+  description String?  @db.VarChar(255)
   isDefault   Boolean?
-  description String?
-  order       Int?
-  group       String?
-}
-
-// Hoas
-model Hoa {
-  id           Int      @id @default(autoincrement())
-  websiteUrl   String?
-  name         String?
-  primaryPhone String?
-  secondaryPhone String?
-  fax          String?
-  email        String?
-  address1     String?
-  address2     String?
-  city         String?
-  state        String?
-  postalCode   String?
-  isActive     Boolean  @default(true)
-  metadata     Json?
-  order        Int      @default(1)
-  group        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt @default(now())
-}
-
-// Incentive Types
-model IncentiveType {
-  id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  name        String?
-  isActive    Boolean  @default(true)
-  isDefault   Boolean?
-  description String?
-  order       Int?
-  group       String?
-}
-
-// Incentives
-model Incentive {
-  id          Int      @id @default(autoincrement())
-  name        String?
   isActive    Boolean?
-  description String?
   order       Int?
-  group       String?
-  createdAt   DateTime @default(now())
-  contactId   Int?
-  userId      Int?
-  typeId      Int?
-  test        Int?
-  contact     Contact? @relation(fields: [contactId], references: [id])
-  user        User?    @relation(fields: [userId], references: [id])
-  type        IncentiveType? @relation(fields: [typeId], references: [id])
+  group       String?  @db.VarChar(255)
+  section     String?  @db.VarChar(255)
+  isVisible   Boolean?
 }
 
-// Integrations
-model Integration {
-  id               Int      @id @default(autoincrement())
-  name             String?
-  providerProfileId String?
-  accessToken      String?
-  profile          Json?
-  meta             Json?
-  isActive         Boolean?
-  createdAt        DateTime @default(now())
-  userId           Int?
-  refreshToken     String?
-  user             User?    @relation(fields: [userId], references: [id])
+model closing_form_updates {
+  id                                                              Int             @id @default(autoincrement())
+  note                                                            String?         @db.VarChar(255)
+  tags                                                            String?         @db.LongText
+  group                                                           String?         @db.VarChar(255)
+  createdAt                                                       DateTime        @db.DateTime(0)
+  closingFormId                                                   Int?
+  userId                                                          Int?
+  typeId                                                          Int?
+  closing_forms_closing_form_updates_closingFormIdToclosing_forms closing_forms?  @relation("closing_form_updates_closingFormIdToclosing_forms", fields: [closingFormId], references: [id], onDelete: Cascade, map: "closingFormId")
+  users                                                           users?          @relation(fields: [userId], references: [id], map: "closing_form_updates_ibfk_1")
+  closing_forms_closing_forms_updateIdToclosing_form_updates      closing_forms[] @relation("closing_forms_updateIdToclosing_form_updates")
+
+  @@index([closingFormId], map: "closingFormId")
+  @@index([userId], map: "userId_fk")
 }
 
-// Internal Updates
-model InternalUpdate {
-  id            Int      @id @default(autoincrement())
-  note          String?
-  group         String?
-  createdAt     DateTime @default(now())
-  fromId        Int?
+model closing_forms {
+  id                                                                     Int                    @id @default(autoincrement())
+  createdAt                                                              DateTime               @db.DateTime(0)
+  updatedAt                                                              DateTime               @db.DateTime(0)
+  contactId                                                              Int?
+  submittedById                                                          Int?
+  isApproved                                                             Boolean?
+  dateApproved                                                           DateTime?              @db.DateTime(0)
+  updateId                                                               Int?
+  resubmitDate                                                           DateTime?              @db.DateTime(0)
+  isActive                                                               Boolean                @default(true)
+  partnerId                                                              Int?
+  statusId                                                               Int?
+  organizationId                                                         Int?
+  taxReviewAddon                                                         Boolean?
+  app_events                                                             app_events[]
+  closing_form_updates_closing_form_updates_closingFormIdToclosing_forms closing_form_updates[] @relation("closing_form_updates_closingFormIdToclosing_forms")
+  closing_form_statuses                                                  closing_form_statuses? @relation(fields: [statusId], references: [id], onUpdate: SetNull, map: "closing_form_status")
+  contacts                                                               contacts?              @relation(fields: [contactId], references: [id], map: "closing_forms_ibfk_116")
+  users                                                                  users?                 @relation(fields: [submittedById], references: [id], map: "closing_forms_ibfk_117")
+  closing_form_updates_closing_forms_updateIdToclosing_form_updates      closing_form_updates?  @relation("closing_forms_updateIdToclosing_form_updates", fields: [updateId], references: [id], map: "closing_forms_ibfk_118")
+  partners                                                               partners?              @relation(fields: [partnerId], references: [id], map: "closing_forms_ibfk_119")
+  organizations                                                          organizations?         @relation(fields: [organizationId], references: [id], map: "closing_forms_ibfk_120")
+  user_closingform                                                       user_closingform[]
+
+  @@index([partnerId], map: "closing_form_partner")
+  @@index([statusId], map: "closing_form_status")
+  @@index([updateId], map: "closing_forms_update")
+  @@index([contactId], map: "contactId")
+  @@index([organizationId], map: "organizationId")
+  @@index([submittedById], map: "submittedById")
+}
+
+model closingform_comment_types {
+  id                   Int                    @id @default(autoincrement())
+  name                 String?                @db.VarChar(255)
+  createdAt            DateTime               @db.DateTime(0)
+  updatedAt            DateTime               @db.DateTime(0)
+  isActive             Boolean?
+  isDefault            Boolean?
+  closingform_comments closingform_comments[]
+}
+
+model closingform_comments {
+  id                        Int                        @id @default(autoincrement())
+  comment                   String?                    @db.VarChar(255)
+  createdAt                 DateTime                   @db.DateTime(0)
+  updatedAt                 DateTime                   @db.DateTime(0)
+  closingFormId             Int?
+  userId                    Int?
+  typeId                    Int?
+  isActive                  Boolean?
+  users                     users?                     @relation(fields: [userId], references: [id], map: "closingform_comments_ibfk_45")
+  closingform_comment_types closingform_comment_types? @relation(fields: [typeId], references: [id], map: "closingform_comments_ibfk_46")
+
+  @@index([typeId], map: "typeId")
+  @@index([userId], map: "userId")
+}
+
+model commercial_poc_positions {
+  id              Int               @id @default(autoincrement())
+  name            String?           @db.VarChar(255)
+  isDefault       Boolean?
+  isActive        Boolean?
+  order           Int?
+  commercial_pocs commercial_pocs[]
+}
+
+model commercial_pocs {
+  id                       Int                       @id @default(autoincrement())
+  firstName                String?                   @db.VarChar(255)
+  lastName                 String?                   @db.VarChar(255)
+  primaryPhone             String?                   @db.VarChar(255)
+  primaryEmail             String?                   @db.VarChar(255)
+  test                     Boolean?
+  metadata                 String?                   @db.LongText
+  isActive                 Boolean                   @default(true)
+  group                    String?                   @db.VarChar(255)
+  createdAt                DateTime                  @db.DateTime(0)
+  updatedAt                DateTime                  @db.DateTime(0)
+  contactId                Int?
+  positionId               Int?
+  contacts                 contacts?                 @relation(fields: [contactId], references: [id], map: "commercial_pocs_ibfk_1")
+  commercial_poc_positions commercial_poc_positions? @relation(fields: [positionId], references: [id], map: "commercial_pocs_ibfk_2")
+
+  @@index([contactId], map: "contactId")
+  @@index([positionId], map: "positionId")
+}
+
+model company_contact_temps {
+  id                Int      @id @default(autoincrement())
+  companyName       String?  @db.VarChar(255)
+  pocFirstName      String?  @db.VarChar(255)
+  pocRole           String?  @db.VarChar(255)
+  pocLastName       String?  @db.VarChar(255)
+  pocEmail          String?  @db.VarChar(255)
+  companyWebsite    String?  @db.VarChar(255)
+  pocPrimaryPhone   String?  @db.VarChar(255)
+  companyAddress1   String?  @db.VarChar(255)
+  companyAddress2   String?  @db.VarChar(255)
+  companyCity       String?  @db.VarChar(255)
+  companyState      String?  @db.VarChar(255)
+  companyPostalCode String?  @db.VarChar(255)
+  solar             Boolean?
+  turbine           Boolean?
+  isActive          Boolean  @default(true)
+  group             String?  @db.VarChar(255)
+  createdAt         DateTime @db.DateTime(0)
+  updatedAt         DateTime @db.DateTime(0)
+}
+
+model company_poc_temps {
+  id                Int      @id @default(autoincrement())
+  companyName       String?  @db.VarChar(255)
+  pocFirstName      String?  @db.VarChar(255)
+  pocRole           String?  @db.VarChar(255)
+  pocLastName       String?  @db.VarChar(255)
+  pocEmail          String?  @db.VarChar(255)
+  pocPrimaryPhone   String?  @db.VarChar(255)
+  companyAddress1   String?  @db.VarChar(255)
+  companyAddress2   String?  @db.VarChar(255)
+  companyCity       String?  @db.VarChar(255)
+  companyState      String?  @db.VarChar(255)
+  companyPostalCode String?  @db.VarChar(255)
+  solar             Boolean?
+  turbine           Boolean?
+  isActive          Boolean  @default(true)
+  group             String?  @db.VarChar(255)
+  createdAt         DateTime @db.DateTime(0)
+  updatedAt         DateTime @db.DateTime(0)
+  userId            Int?
+  companyWebsite    String?  @db.Text
+  users             users?   @relation(fields: [userId], references: [id], map: "company_poc_temps_ibfk_1")
+
+  @@index([userId], map: "userId")
+}
+
+model contact_action_types {
+  id              Int               @id @default(autoincrement())
+  name            String            @default("") @db.VarChar(255)
+  isDefault       Boolean           @default(false)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @db.DateTime(0)
+  contact_actions contact_actions[]
+}
+
+model contact_actions {
+  id                   Int                   @id @default(autoincrement())
+  createdAt            DateTime              @db.DateTime(0)
+  contactId            Int?
+  typeId               Int?
+  contacts             contacts?             @relation(fields: [contactId], references: [id], onDelete: Cascade, map: "fk_contact_pk")
+  contact_action_types contact_action_types? @relation(fields: [typeId], references: [id], onUpdate: SetNull, map: "fk_type_pk")
+
+  @@index([contactId], map: "fk_contact_pk")
+  @@index([typeId], map: "fk_type_pk")
+}
+
+model contact_appointment {
+  createdAt     DateTime     @db.DateTime(0)
+  updatedAt     DateTime     @db.DateTime(0)
+  contactId     Int
+  appointmentId Int
+  contacts      contacts     @relation(fields: [contactId], references: [id], onDelete: Cascade, map: "contact_appointment_ibfk_1")
+  appointments  appointments @relation(fields: [appointmentId], references: [id], onDelete: Cascade, map: "contact_appointment_ibfk_2")
+
+  @@id([contactId, appointmentId])
+  @@index([appointmentId], map: "appointmentId")
+}
+
+model contact_automation_runs {
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @db.DateTime(0)
+  contactId    Int
+  automationId Int
+}
+
+model contact_comment_types {
+  id        Int      @id @default(autoincrement())
+  type      String?  @db.VarChar(255)
+  createdAt DateTime @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
+}
+
+model contact_comments {
+  id        Int      @id @default(autoincrement())
+  comment   String?  @db.VarChar(255)
+  createdAt DateTime @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
+  contactId Int?
+  userId    Int?
+  users     users?   @relation(fields: [userId], references: [id], map: "contact_comments_ibfk_1")
+
+  @@index([userId], map: "userId")
+}
+
+model contact_event_types {
+  id             Int              @id @default(autoincrement())
+  name           String?          @db.VarChar(255)
+  description    String?          @db.VarChar(255)
+  isActive       Boolean?
+  isActionable   Boolean?
+  contact_events contact_events[]
+}
+
+model contact_events {
+  id                  Int                  @id @default(autoincrement())
+  system              Boolean?
+  processDate         DateTime?            @db.DateTime(0)
+  test                Boolean?
+  createdAt           DateTime             @db.DateTime(0)
+  typeId              Int?
+  contactId           Int?
+  userId              Int?
+  contact_event_types contact_event_types? @relation(fields: [typeId], references: [id], map: "contact_events_ibfk_77")
+  contacts            contacts?            @relation(fields: [contactId], references: [id], map: "contact_events_ibfk_78")
+  users               users?               @relation(fields: [userId], references: [id], map: "contact_events_ibfk_79")
+
+  @@index([contactId], map: "contactId")
+  @@index([typeId], map: "typeId")
+  @@index([userId], map: "userId")
+}
+
+model contact_sources {
+  id               Int                @id @default(autoincrement())
+  slug             String             @db.VarChar(255)
+  name             String?            @db.VarChar(255)
+  description      String?            @db.VarChar(255)
+  isDefault        Boolean?
+  isActive         Boolean?           @default(true)
+  order            Int?
+  group            String?            @db.VarChar(255)
+  api_keys         api_keys[]
+  auto_automations auto_automations[]
+  contacts         contacts[]
+  contacts_copy    contacts_copy[]
+}
+
+model contact_stages {
+  id            Int             @id @default(autoincrement())
+  slug          String          @unique(map: "slug") @db.VarChar(255)
+  name          String?         @db.VarChar(255)
+  description   String?         @db.VarChar(255)
+  isDefault     Boolean?
+  isActive      Boolean?
+  order         Int?
+  color         String?         @db.VarChar(11)
+  contacts      contacts[]
+  contacts_copy contacts_copy[]
+}
+
+model contact_statuses {
+  id         Int   @id @default(autoincrement())
+  naem       Float
+  marker_url Float
+}
+
+model contact_systems {
+  id        Int       @id @default(autoincrement())
+  size      Int?
+  createdAt DateTime  @db.DateTime(0)
+  updatedAt DateTime  @db.DateTime(0)
+  contactId Int?
+  contacts  contacts? @relation(fields: [contactId], references: [id], map: "contact_systems_ibfk_1")
+
+  @@index([contactId], map: "contactId")
+}
+
+model contact_types {
+  id            Int             @id @default(autoincrement())
+  slug          String          @unique(map: "slug") @db.VarChar(255)
+  name          String?         @db.VarChar(255)
+  description   String?         @db.VarChar(255)
+  isDefault     Boolean?
+  isActive      Boolean?        @default(true)
+  order         Int?
+  group         String?         @db.VarChar(255)
+  color         String?         @db.VarChar(11)
+  contacts      contacts[]
+  contacts_copy contacts_copy[]
+}
+
+model contact_updates {
+  id            Int             @id @default(autoincrement())
+  note          String?         @db.Text
+  tags          String?         @db.LongText
+  group         String?         @db.VarChar(255)
+  createdAt     DateTime        @db.DateTime(0)
   toId          Int?
   appointmentId Int?
   contactId     Int?
   userId        Int?
-  from          Option?   @relation("FromOption", fields: [fromId], references: [id])
-  to            Option?   @relation("ToOption", fields: [toId], references: [id])
-  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
-  contact       Contact? @relation(fields: [contactId], references: [id])
-  user          User?    @relation(fields: [userId], references: [id])
+  test          Int?            @db.TinyInt
+  options       options?        @relation(fields: [toId], references: [id], map: "contact_updates_ibfk_2")
+  appointments  appointments?   @relation(fields: [appointmentId], references: [id], map: "contact_updates_ibfk_3")
+  users         users?          @relation(fields: [userId], references: [id], map: "contact_updates_ibfk_4")
+  contacts      contacts[]
+  contacts_copy contacts_copy[]
+
+  @@index([appointmentId], map: "appointmentId")
+  @@index([toId], map: "toId")
+  @@index([userId], map: "userId")
 }
 
-// Lender Partner
-model LenderPartner {
+model contact_user {
+  createdAt DateTime @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
+  contactId Int
+  userId    Int
+  contacts  contacts @relation(fields: [contactId], references: [id], onDelete: Cascade, map: "contact_user_ibfk_1")
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "contact_user_ibfk_2")
+
+  @@id([contactId, userId])
+  @@index([userId], map: "userId")
+}
+
+model contacts {
+  id                  Int                   @id @default(autoincrement())
+  firstName           String?               @db.VarChar(255)
+  lastName            String?               @db.VarChar(255)
+  address1            String?               @db.VarChar(255)
+  address2            String?               @db.VarChar(255)
+  city                String?               @db.VarChar(255)
+  state               String?               @db.VarChar(255)
+  postalCode          String?               @db.VarChar(255)
+  interests           String?               @db.LongText
+  isSpanishSpeaker    Boolean?              @default(false)
+  primaryPhone        String?               @db.VarChar(255)
+  secondaryPhone      String?               @db.VarChar(255)
+  email               String?               @db.VarChar(255)
+  avgMonthlyBill      String?               @db.Text
+  exactMonthlyKW      String?               @db.LongText
+  closeDate           DateTime?             @db.DateTime(0)
+  leadDate            DateTime?             @db.DateTime(0)
+  assignDate          DateTime?             @db.DateTime(0)
+  opportunityDate     DateTime?             @db.DateTime(0)
+  sitDate             DateTime?             @db.DateTime(0)
+  dropDate            DateTime?             @db.DateTime(0)
+  isActive            Boolean               @default(true)
+  organizationId      Int?
+  createdAt           DateTime              @db.DateTime(0)
+  updatedAt           DateTime              @db.DateTime(0)
+  partnerProposalId   Int?
+  lenderProposalId    Int?
+  assignedById        Int?
+  sourceId            Int?
+  typeId              Int?
+  genTypeId           Int?
+  hoaId               Int?
+  utilityProvider     String?               @db.Text
+  roofTypeId          Int?
+  test                Int?                  @db.TinyInt
+  busName             String?               @db.VarChar(200)
+  busWebsite          String?               @db.Text
+  tzOffset            String?               @db.VarChar(20)
+  updateId            Int?
+  stageId             Int?                  @default(1)
+  projectId           Int?
+  propertyTypeId      Int?
+  meta                String?               @db.LongText
+  sourceNotes         String?               @db.Text
+  activities          activities[]
+  adders              adders[]
+  app_events          app_events[]
+  closing_forms       closing_forms[]
+  commercial_pocs     commercial_pocs[]
+  contact_actions     contact_actions[]
+  contact_appointment contact_appointment[]
+  contact_events      contact_events[]
+  contact_systems     contact_systems[]
+  contact_user        contact_user[]
+  property_types      property_types?       @relation(fields: [propertyTypeId], references: [id], onUpdate: SetNull, map: "contact_propertTypeId_fk")
+  roof_types          roof_types?           @relation(fields: [roofTypeId], references: [id], map: "contact_rooftype")
+  contact_stages      contact_stages?       @relation(fields: [stageId], references: [id], onDelete: Restrict, map: "contact_stage_fk")
+  contact_updates     contact_updates?      @relation(fields: [updateId], references: [id], onUpdate: SetNull, map: "contact_update_fk")
+  contact_types       contact_types?        @relation(fields: [typeId], references: [id], map: "contacts_ibfk_10")
+  gen_types           gen_types?            @relation(fields: [genTypeId], references: [id], map: "contacts_ibfk_11")
+  hoas                hoas?                 @relation(fields: [hoaId], references: [id], map: "contacts_ibfk_12")
+  partner_proposals   partner_proposals?    @relation(fields: [partnerProposalId], references: [id], map: "contacts_ibfk_3")
+  lender_proposals    lender_proposals?     @relation(fields: [lenderProposalId], references: [id], map: "contacts_ibfk_4")
+  users               users?                @relation(fields: [assignedById], references: [id], map: "contacts_ibfk_8")
+  contact_sources     contact_sources?      @relation(fields: [sourceId], references: [id], map: "contacts_ibfk_9")
+  organizations       organizations?        @relation(fields: [organizationId], references: [id], onUpdate: SetNull, map: "organization_fk_1")
+  projects            projects?             @relation(fields: [projectId], references: [id], onUpdate: SetNull, map: "project_fk")
+  documents           documents[]
+  incentives          incentives[]
+  notes               notes[]
+  pocs                pocs[]
+  promotions          promotions[]
+  solar_incentives    solar_incentives[]
+  tasks               tasks[]
+  user_group_contact  user_group_contact[]
+
+  @@index([assignedById], map: "assignedById")
+  @@index([propertyTypeId], map: "contact_propertTypeId_fk")
+  @@index([stageId], map: "contact_stage")
+  @@index([updateId], map: "contact_update_fk")
+  @@index([genTypeId], map: "genTypeId")
+  @@index([hoaId], map: "hoaId")
+  @@index([firstName, id, isActive, stageId, busName, lastName, partnerProposalId, sourceId, propertyTypeId, lenderProposalId, typeId, organizationId, updateId], map: "isActive")
+  @@index([lenderProposalId], map: "lenderProposalId")
+  @@index([organizationId], map: "organization_fk_1")
+  @@index([partnerProposalId], map: "partnerProposalId")
+  @@index([projectId], map: "project_fk")
+  @@index([roofTypeId], map: "roofTypeId_Index")
+  @@index([sourceId], map: "sourceId")
+  @@index([state], map: "state")
+  @@index([typeId], map: "typeId")
+}
+
+model contacts_copy {
+  id                Int                @id @default(autoincrement())
+  firstName         String?            @db.VarChar(255)
+  lastName          String?            @db.VarChar(255)
+  address1          String?            @db.VarChar(255)
+  address2          String?            @db.VarChar(255)
+  city              String?            @db.VarChar(255)
+  state             String?            @db.VarChar(255)
+  postalCode        String?            @db.VarChar(255)
+  interests         String?            @db.LongText
+  isSpanishSpeaker  Boolean?           @default(false)
+  primaryPhone      String?            @db.VarChar(255)
+  secondaryPhone    String?            @db.VarChar(255)
+  email             String?            @db.VarChar(255)
+  avgMonthlyBill    String?            @db.Text
+  exactMonthlyKW    String?            @db.LongText
+  closeDate         DateTime?          @db.DateTime(0)
+  leadDate          DateTime?          @db.DateTime(0)
+  assignDate        DateTime?          @db.DateTime(0)
+  opportunityDate   DateTime?          @db.DateTime(0)
+  sitDate           DateTime?          @db.DateTime(0)
+  dropDate          DateTime?          @db.DateTime(0)
+  isActive          Boolean            @default(true)
+  organizationId    Int?
+  createdAt         DateTime           @db.DateTime(0)
+  updatedAt         DateTime           @db.DateTime(0)
+  partnerProposalId Int?
+  lenderProposalId  Int?
+  assignedById      Int?
+  sourceId          Int?
+  typeId            Int?
+  genTypeId         Int?
+  hoaId             Int?
+  utilityProvider   String?            @db.Text
+  roofTypeId        Int?
+  test              Int?               @db.TinyInt
+  busName           String?            @db.VarChar(200)
+  busWebsite        String?            @db.Text
+  tzOffset          String?            @db.VarChar(20)
+  updateId          Int?
+  stageId           Int?               @default(1)
+  projectId         Int?
+  propertyTypeId    Int?
+  meta              String?            @db.LongText
+  property_types    property_types?    @relation(fields: [propertyTypeId], references: [id], onUpdate: SetNull, map: "contacts_copy_ibfk_1")
+  users             users?             @relation(fields: [assignedById], references: [id], map: "contacts_copy_ibfk_10")
+  contact_sources   contact_sources?   @relation(fields: [sourceId], references: [id], map: "contacts_copy_ibfk_11")
+  organizations     organizations?     @relation(fields: [organizationId], references: [id], onUpdate: SetNull, map: "contacts_copy_ibfk_12")
+  projects          projects?          @relation(fields: [projectId], references: [id], onUpdate: SetNull, map: "contacts_copy_ibfk_13")
+  roof_types        roof_types?        @relation(fields: [roofTypeId], references: [id], map: "contacts_copy_ibfk_2")
+  contact_stages    contact_stages?    @relation(fields: [stageId], references: [id], onDelete: Restrict, map: "contacts_copy_ibfk_3")
+  contact_updates   contact_updates?   @relation(fields: [updateId], references: [id], onUpdate: SetNull, map: "contacts_copy_ibfk_4")
+  contact_types     contact_types?     @relation(fields: [typeId], references: [id], map: "contacts_copy_ibfk_5")
+  gen_types         gen_types?         @relation(fields: [genTypeId], references: [id], map: "contacts_copy_ibfk_6")
+  hoas              hoas?              @relation(fields: [hoaId], references: [id], map: "contacts_copy_ibfk_7")
+  partner_proposals partner_proposals? @relation(fields: [partnerProposalId], references: [id], map: "contacts_copy_ibfk_8")
+  lender_proposals  lender_proposals?  @relation(fields: [lenderProposalId], references: [id], map: "contacts_copy_ibfk_9")
+
+  @@index([assignedById], map: "assignedById")
+  @@index([propertyTypeId], map: "contact_propertTypeId_fk")
+  @@index([stageId], map: "contact_stage")
+  @@index([updateId], map: "contact_update_fk")
+  @@index([genTypeId], map: "genTypeId")
+  @@index([hoaId], map: "hoaId")
+  @@index([lenderProposalId], map: "lenderProposalId")
+  @@index([organizationId], map: "organization_fk_1")
+  @@index([partnerProposalId], map: "partnerProposalId")
+  @@index([projectId], map: "project_fk")
+  @@index([roofTypeId], map: "roofTypeId_Index")
+  @@index([sourceId], map: "sourceId")
+  @@index([typeId], map: "typeId")
+}
+
+model countries {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique(map: "slug") @db.VarChar(255)
+  imageUrl    String?  @db.VarChar(255)
+  websiteUrl  String?  @db.VarChar(255)
+  description String   @db.VarChar(255)
+  name        String   @db.VarChar(255)
+  isActive    Boolean  @default(true)
+  metadata    String?  @db.LongText
+  group       String?  @db.VarChar(255)
+  isDefault   Boolean  @default(false)
+  isApproved  Boolean  @default(false)
+  order       Int      @default(1)
+  createdAt   DateTime @db.DateTime(0)
+  updatedAt   DateTime @db.DateTime(0)
+}
+
+model design_requests {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
+}
+
+model document_types {
+  id            Int         @id @default(autoincrement())
+  slug          String      @unique(map: "slug") @db.VarChar(255)
+  name          String      @db.VarChar(255)
+  description   String?     @db.VarChar(255)
+  isDefault     Boolean?
+  isActive      Boolean?
+  order         Int?
+  group         String?     @db.VarChar(255)
+  section       String?     @db.VarChar(255)
+  isCommercial  Boolean?
+  isResidential Boolean?
+  documents     documents[]
+}
+
+model documents {
+  id             Int             @id @default(autoincrement())
+  originalName   String?         @db.VarChar(255)
+  key            String?         @db.VarChar(255)
+  tags           String?         @db.LongText
+  metadata       String?         @db.LongText
+  versionId      String          @db.VarChar(255)
+  location       String          @db.VarChar(255)
+  isActive       Boolean         @default(true)
+  order          Int             @default(1)
+  createdAt      DateTime        @db.DateTime(0)
+  contactId      Int?
+  typeId         Int?
+  userId         Int?
+  partnerId      Int?
+  externalUpload Boolean?
+  test           Int?
+  contacts       contacts?       @relation(fields: [contactId], references: [id], map: "documents_ibfk_81")
+  document_types document_types? @relation(fields: [typeId], references: [id], map: "documents_ibfk_82")
+  users          users?          @relation(fields: [userId], references: [id], map: "documents_ibfk_83")
+  partners       partners?       @relation(fields: [partnerId], references: [id], map: "documents_ibfk_84")
+
+  @@index([contactId], map: "contactId")
+  @@index([partnerId], map: "partnerId")
+  @@index([typeId], map: "typeId")
+  @@index([userId], map: "userId")
+}
+
+model equipment_residential_batteries {
+  id                                    Int                                     @id @default(autoincrement())
+  part_number                           String?                                 @db.VarChar(255)
+  spec_sheet                            String?                                 @db.VarChar(255)
+  usable_energy                         String?                                 @db.VarChar(255)
+  charge_power                          String?                                 @db.VarChar(255)
+  discharge_power                       String?                                 @db.VarChar(255)
+  peak_discharge_power                  String?                                 @db.VarChar(255)
+  peak_discharge_duration               String?                                 @db.VarChar(255)
+  product_image_path                    String?                                 @db.VarChar(255)
+  manufacturer_id                       Int?
+  equipment_residential_battery_partner equipment_residential_battery_partner[]
+}
+
+model equipment_residential_battery_partner {
+  battery_id                      Int
+  partner_id                      Int
+  equipment_residential_batteries equipment_residential_batteries @relation(fields: [battery_id], references: [id], onDelete: Cascade, map: "equipment_residential_battery_partner_ibfk_1")
+  partners                        partners                        @relation(fields: [partner_id], references: [id], onDelete: Cascade, map: "equipment_residential_battery_partner_ibfk_2")
+
+  @@id([battery_id, partner_id])
+  @@index([partner_id], map: "partner_id")
+}
+
+model equipment_residential_inverter_partner {
+  createdAt                       DateTime                        @db.DateTime(0)
+  updatedAt                       DateTime                        @db.DateTime(0)
+  module_id                       Int
+  partner_id                      Int
+  equipment_residential_inverters equipment_residential_inverters @relation(fields: [module_id], references: [id], onDelete: Cascade, map: "equipment_residential_inverter_partner_ibfk_1")
+  partners                        partners                        @relation(fields: [partner_id], references: [id], onDelete: Cascade, map: "equipment_residential_inverter_partner_ibfk_2")
+
+  @@id([module_id, partner_id])
+  @@index([partner_id], map: "partner_id")
+}
+
+model equipment_residential_inverters {
+  id                                     Int                                      @id @default(autoincrement())
+  display_name                           String?                                  @db.VarChar(255)
+  model                                  String?                                  @db.VarChar(255)
+  type                                   String?                                  @db.VarChar(255)
+  efficiency                             String?                                  @db.VarChar(255)
+  spec_sheet                             String?                                  @db.VarChar(255)
+  man_part_num                           String?                                  @db.VarChar(255)
+  ced_part_num                           String?                                  @db.VarChar(255)
+  soligent_part_num                      String?                                  @db.VarChar(255)
+  jexpro_num                             String?                                  @db.VarChar(255)
+  rated_ac                               Int?
+  max_ac                                 Int?
+  max_dc_input                           String?                                  @db.VarChar(255)
+  max_connected_panels                   Int?
+  number_of_mppt                         Int?
+  inputs_per_mppt                        String?                                  @db.VarChar(255)
+  max_input_voltage                      Int?
+  max_input_current                      Int?
+  max_output_current_v                   String?                                  @db.VarChar(255)
+  min_breaker_rating                     String?                                  @db.VarChar(255)
+  cec_weighted_eff_percent               String?                                  @db.VarChar(255)
+  nominal_input_voltage                  String?                                  @db.VarChar(255)
+  nominal_dc_input_voltage               String?                                  @db.VarChar(255)
+  optimizer_max_output_current           String?                                  @db.VarChar(255)
+  max_string_wattage_size                String?                                  @db.VarChar(255)
+  under_module_writing                   String?                                  @db.VarChar(255)
+  optimizers                             String?                                  @db.VarChar(255)
+  rated_dc_input_current                 String?                                  @db.VarChar(255)
+  max_string_size                        String?                                  @db.VarChar(255)
+  min_string_size                        String?                                  @db.VarChar(255)
+  max_output_current                     Int?
+  created                                String?                                  @db.VarChar(255)
+  modified                               String?                                  @db.VarChar(255)
+  expired                                String?                                  @db.VarChar(255)
+  part_number                            String?                                  @db.VarChar(255)
+  max_input_power                        Int?
+  nominal_input_current                  Int?
+  max_input_string_size                  String?                                  @db.VarChar(255)
+  max_input_string_quantity              String?                                  @db.VarChar(255)
+  max_input_string_power                 String?                                  @db.VarChar(255)
+  max_output_voltage                     Int?
+  max_output_wattage                     Int?
+  min_output                             String?                                  @db.VarChar(255)
+  battery_ready_inverter                 String?                                  @db.VarChar(255)
+  cad_type                               String?                                  @db.VarChar(255)
+  min_modules_per_string                 Int?
+  min_mpp_voltage                        Int?
+  max_voltage_drop                       Float?                                   @db.Float
+  combo                                  String?                                  @db.VarChar(255)
+  auto_select                            String?                                  @db.VarChar(255)
+  use_png_spec                           String?                                  @db.VarChar(255)
+  includes_ev_charger                    String?                                  @db.VarChar(255)
+  manufacturername                       String?                                  @db.VarChar(255)
+  createdAt                              DateTime                                 @default(now()) @db.DateTime(0)
+  updatedAt                              DateTime                                 @default(now()) @db.DateTime(0)
+  manufacturer_id                        Int?
+  equipment_residential_inverter_partner equipment_residential_inverter_partner[]
+}
+
+model equipment_residential_module_partner {
+  createdAt                     DateTime                      @db.DateTime(0)
+  updatedAt                     DateTime                      @db.DateTime(0)
+  module_id                     Int
+  partner_id                    Int
+  equipment_residential_modules equipment_residential_modules @relation(fields: [module_id], references: [id], onDelete: Cascade, map: "equipment_residential_module_partner_ibfk_1")
+  partners                      partners                      @relation(fields: [partner_id], references: [id], onDelete: Cascade, map: "equipment_residential_module_partner_ibfk_2")
+
+  @@id([module_id, partner_id])
+  @@index([partner_id], map: "partner_id")
+}
+
+model equipment_residential_modules {
+  id                                   Int                                    @id @default(autoincrement())
+  length                               Float?                                 @db.Float
+  width                                Float?                                 @db.Float
+  name                                 String?                                @db.VarChar(255)
+  display_name                         String?                                @db.VarChar(255)
+  wattage                              Float?                                 @db.Float
+  degradation                          Float?                                 @db.Float
+  spec_sheet                           String?                                @db.VarChar(255)
+  part_number                          String?                                @db.VarChar(255)
+  ced_part_number                      String?                                @db.VarChar(255)
+  cad_part_number                      String?                                @db.VarChar(255)
+  max_power_voltage                    Float?                                 @db.Float
+  max_power_current                    Float?                                 @db.Float
+  open_circuit_voltage                 Float?                                 @db.Float
+  short_circuit_current                Float?                                 @db.Float
+  ac_module                            String?                                @db.VarChar(255)
+  dwg_file                             String?                                @db.VarChar(255)
+  created                              String?                                @db.VarChar(255)
+  modified                             String?                                @db.VarChar(255)
+  expired                              String?                                @db.VarChar(222)
+  cell_quantity                        Int?
+  max_fuse_rating                      Int?
+  thickness                            Float?                                 @db.Float
+  backsheet_color                      String?                                @db.VarChar(255)
+  frame_color                          String?                                @db.VarChar(255)
+  cad_ready                            String?                                @db.VarChar(11)
+  weight                               Float?                                 @db.Float
+  spec_images                          String?                                @db.LongText
+  manufacturer_id                      Int?
+  use_png_spec                         String?                                @db.VarChar(11)
+  manufacturername                     String?                                @db.VarChar(255)
+  createdAt                            DateTime                               @default(now()) @db.DateTime(0)
+  updatedAt                            DateTime                               @default(now()) @db.DateTime(0)
+  type                                 Int?
+  equipment_residential_module_partner equipment_residential_module_partner[]
+}
+
+model gen_types {
+  id            Int             @id @default(autoincrement())
+  slug          String          @db.VarChar(255)
+  name          String?         @db.VarChar(255)
+  isActive      Boolean         @default(true)
+  isDefault     Boolean?
+  description   String?         @db.VarChar(255)
+  order         Int?
+  group         String?         @db.VarChar(255)
+  contacts      contacts[]
+  contacts_copy contacts_copy[]
+}
+
+model hoas {
+  id             Int             @id @default(autoincrement())
+  websiteUrl     String?         @db.VarChar(255)
+  name           String?         @db.VarChar(255)
+  primaryPhone   String?         @db.VarChar(255)
+  secondaryPhone String?         @db.VarChar(255)
+  fax            String?         @db.VarChar(255)
+  email          String?         @db.VarChar(255)
+  address1       String?         @db.VarChar(255)
+  address2       String?         @db.VarChar(255)
+  city           String?         @db.VarChar(255)
+  state          String?         @db.VarChar(255)
+  postalCode     String?         @db.VarChar(255)
+  isActive       Boolean?        @default(true)
+  metadata       String?         @db.LongText
+  order          Int?            @default(1)
+  group          String?         @db.VarChar(255)
+  createdAt      DateTime        @db.DateTime(0)
+  updatedAt      DateTime        @db.DateTime(0)
+  contacts       contacts[]
+  contacts_copy  contacts_copy[]
+}
+
+model incentive_types {
+  id          Int          @id @default(autoincrement())
+  slug        String       @db.VarChar(255)
+  name        String?      @db.VarChar(255)
+  isActive    Boolean?     @default(true)
+  isDefault   Boolean?
+  description String?      @db.VarChar(255)
+  order       Int?
+  group       String?      @db.VarChar(255)
+  incentives  incentives[]
+  promotions  promotions[]
+}
+
+model incentives {
+  id              Int              @id @default(autoincrement())
+  name            String?          @db.VarChar(255)
+  isActive        Boolean?
+  description     String?          @db.VarChar(255)
+  order           Int?
+  group           String?          @db.VarChar(255)
+  createdAt       DateTime         @db.DateTime(0)
+  contactId       Int?
+  userId          Int?
+  typeId          Int?
+  test            Int?             @db.TinyInt
+  contacts        contacts?        @relation(fields: [contactId], references: [id], map: "incentives_ibfk_1")
+  users           users?           @relation(fields: [userId], references: [id], map: "incentives_ibfk_2")
+  incentive_types incentive_types? @relation(fields: [typeId], references: [id], map: "incentives_ibfk_3")
+
+  @@index([contactId], map: "contactId")
+  @@index([typeId], map: "typeId")
+  @@index([userId], map: "userId")
+}
+
+model integrations {
+  id                Int      @id @default(autoincrement())
+  name              String?  @db.VarChar(255)
+  providerProfileId String?  @db.VarChar(255)
+  accessToken       String?  @db.VarChar(255)
+  profile           String?  @db.LongText
+  meta              String?  @db.LongText
+  isActive          Boolean?
+  createdAt         DateTime @db.DateTime(0)
+  userId            Int?
+  refreshToken      String?  @db.VarChar(255)
+  users             users?   @relation(fields: [userId], references: [id], map: "integrations_ibfk_1")
+
+  @@index([userId], map: "userId")
+}
+
+model internal_updates {
+  id                                       Int           @id @default(autoincrement())
+  note                                     String?       @db.VarChar(255)
+  group                                    String?       @db.VarChar(255)
+  createdAt                                DateTime      @db.DateTime(0)
+  fromId                                   Int?
+  toId                                     Int?
+  appointmentId                            Int?
+  contactId                                Int?
+  userId                                   Int?
+  options_internal_updates_fromIdTooptions options?      @relation("internal_updates_fromIdTooptions", fields: [fromId], references: [id], map: "internal_updates_ibfk_1")
+  options_internal_updates_toIdTooptions   options?      @relation("internal_updates_toIdTooptions", fields: [toId], references: [id], map: "internal_updates_ibfk_2")
+  appointments                             appointments? @relation(fields: [appointmentId], references: [id], map: "internal_updates_ibfk_3")
+  users                                    users?        @relation(fields: [userId], references: [id], map: "internal_updates_ibfk_4")
+
+  @@index([appointmentId], map: "appointmentId")
+  @@index([fromId], map: "fromId")
+  @@index([toId], map: "toId")
+  @@index([userId], map: "userId")
+}
+
+model lender_partner {
+  createdAt  DateTime @db.DateTime(0)
+  updatedAt  DateTime @db.DateTime(0)
   lender_id  Int
   partner_id Int
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt @default(now())
-  lender     Lender   @relation(fields: [lender_id], references: [id])
-  partner    Partner  @relation(fields: [partner_id], references: [id])
+  lenders    lenders  @relation(fields: [lender_id], references: [id], onDelete: Cascade, map: "lender_partner_ibfk_1")
+  partners   partners @relation(fields: [partner_id], references: [id], onDelete: Cascade, map: "lender_partner_ibfk_2")
+
   @@id([lender_id, partner_id])
+  @@index([partner_id], map: "partner_id")
 }
 
-// Lender Proposals
-model LenderProposal {
-  id             Int      @id @default(autoincrement())
-  url            String?
-  loanAmount     Int?
-  systemPrice    Int?
-  rate           Int?
-  months         Int?
-  years          Int?
-  isActive       Boolean  @default(true)
-  metadata       Json?
-  group          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt @default(now())
-  contactId      Int?
-  lenderId       Int?
-  submittedById  Int?
-  isCash         Int?
-  cashAmount     Int?
-  ppwGross       Float?
-  ppwNet         Float?
-  systemSize     Float?
-  selectDate     DateTime?
-  submittedBy    User?    @relation("SubmittedBy", fields: [submittedById], references: [id])
-  contact        Contact? @relation(fields: [contactId], references: [id])
-  lender         Lender?  @relation(fields: [lenderId], references: [id])
-}
-
-
-// Lenders
-model Lender {
-  id            Int      @id @default(autoincrement())
-  name          String?
-  websiteUrl    String?
-  primaryPhone  String?
-  secondaryPhone String?
-  fax           String?
-  description   String?
-  email         String?
-  logoUrl       String?
-  metadata      Json?
-  slug          String?
-  isActive      Boolean? @default(true)
-  isDefault     Boolean? @default(false)
-  order         Int?     @default(1)
-  group         String?
-}
-
-// Logins
-model Login {
-  id         Int      @id @default(autoincrement())
-  ip         String?
-  data       Json?
-  createdAt  DateTime @default(now())
-  userId     Int?
-  managerId  Int?
-  city       String?
-  state      String?
-  country    String?
-  user       User?    @relation(fields: [userId], references: [id])
-  manager    User?    @relation(fields: [managerId], references: [id])
-}
-
-// Manufacturers
-model Manufacturer {
-  id    Int      @id
-  name  String?
-  type  String?
-}
-
-// Meters
-model Meter {
-  id            Int      @id @default(autoincrement())
-  data          Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt @default(now())
+model lender_proposals {
+  id            Int             @id @default(autoincrement())
+  url           String?         @db.VarChar(255)
+  loanAmount    Int?
+  systemPrice   Int?
+  rate          Int?
+  months        Int?
+  years         Int?
+  isActive      Boolean         @default(true)
+  metadata      String?         @db.LongText
+  group         String?         @db.VarChar(255)
+  createdAt     DateTime        @db.DateTime(0)
+  updatedAt     DateTime        @db.DateTime(0)
   contactId     Int?
-  name          String?
-  accountNumber String?
-  meterNumber   String?
-  contact       Contact? @relation(fields: [contactId], references: [id])
-}
-
-// Notes
-model Note {
-  id         Int      @id @default(autoincrement())
-  contents   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt @default(now())
-  contactId  Int?
-  userId     Int?
-  test       Int?
-  contact    Contact? @relation(fields: [contactId], references: [id])
-  user       User?    @relation(fields: [userId], references: [id])
-}
-
-// Options
-model Option {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  value       String?
-  options     Json?
-  type        String
-  slug        String   @unique
-  group       String?
-  isActive    Boolean  @default(true)
-  isVisible   Boolean? @default(true)
-  isDefault   Boolean? @default(false)
-  order       Int      @default(1)
-  notifications Json?
-}
-
-
-// OrderStatuses
-model OrderStatus {
-  id        Int      @id @default(autoincrement())
-  isActive  Boolean  @default(true)
-  name      String   @default("0")
-  isDefault Int?
-}
-
-// OrderTypes
-model OrderType {
-  id        Int      @id @default(autoincrement())
-  isActive  Boolean  @default(true)
-  name      String   @default("0")
-  isDefault Int?
-  code      String?
-}
-
-// Orders
-model Order {
-  id               Int       @id @default(autoincrement())
-  chargeId         String?   @unique
-  amount           String?
-  quantity         String?
-  note             String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt @default(now())
-  organizationId   Int?
-  userId           Int?
-  statusId         Int?
-  filledById       Int?
-  stripeInvoiceId  String?
-  fillDate         DateTime?
-  typeId           Int?
-  organization     Organization?  @relation(fields: [organizationId], references: [id])
-  user             User?         @relation(fields: [userId], references: [id])
-  status           OrderStatus?  @relation(fields: [statusId], references: [id])
-  filledBy         User?         @relation(fields: [filledById], references: [id])
-  type             OrderType?    @relation(fields: [typeId], references: [id])
-}
-
-// Organizations
-model Organization {
-  id           Int       @id @default(autoincrement())
-  name         String    @unique
-  description  String?
-  isActive     Boolean   @default(true)
-  isDefault    Int       @default(0)
-  inActiveDate DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt @default(now())
-  config       Json?
-  redline      Float?
-}
-
-// PanelManufacturers
-model PanelManufacturer {
-  id         Int      @id @default(autoincrement())
-  slug       String   @unique
-  imageUrl   String?
-  websiteUrl String?
-  description String   @default("")
-  origin     String?
-  name       String   @unique
-  isActive   Boolean  @default(true)
-  metadata   Json?
-  isDefault  Int?     @default(0)
-  order      Int?     @default(1)
-}
-
-// PartnerPartnerSector
-model PartnerPartnerSector {
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt @default(now())
-  partnerSectorId  Int
-  partnerId        Int
-  partnerSector    PartnerSector @relation(fields: [partnerSectorId], references: [id])
-  partner          Partner      @relation(fields: [partnerId], references: [id])
-}
-
-// PartnerPartnerType
-model PartnerPartnerType {
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt @default(now())
-  partnerTypeId   Int
-  partnerId       Int
-  partnerType     PartnerType @relation(fields: [partnerTypeId], references: [id])
-  partner         Partner     @relation(fields: [partnerId], references: [id])
-}
-
-// PartnerProposalComments
-model PartnerProposalComment {
-  id               Int      @id @default(autoincrement())
-  comment          String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt @default(now())
-  userId           Int?
-  partnerProposalId Int?
-  partnerProposal  PartnerProposal? @relation(fields: [partnerProposalId], references: [id])
-}
-
-// PartnerProposals
-model PartnerProposal {
-  id            Int       @id @default(autoincrement())
-  url           String?
-  isActive      Boolean   @default(true)
-  metadata      Json?
-  group         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt @default(now())
-  contactId     Int?
-  partnerId     Int?
+  lenderId      Int?
   submittedById Int?
-  selectDate    DateTime?
-  test          Int?
-  submittedBy   User?     @relation(fields: [submittedById], references: [id])
+  isCash        Int?            @db.TinyInt
+  cashAmount    Int?
+  ppwGross      Float?          @db.Float
+  ppwNet        Float?          @db.Float
+  systemSize    Float?          @db.Float
+  selectDate    DateTime?       @db.DateTime(0)
+  contacts      contacts[]
+  contacts_copy contacts_copy[]
+  users         users?          @relation(fields: [submittedById], references: [id], map: "lender_proposals_ibfk_1")
+
+  @@index([submittedById], map: "submittedById")
 }
 
-// PartnerSectors
-model PartnerSector {
-  id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  name        String?
-  description String?
-  isDefault   Int?
-  isActive    Int?
-  order       Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt @default(now())
+model lenders {
+  id             Int              @id @default(autoincrement())
+  name           String?          @db.VarChar(255)
+  websiteUrl     String?          @db.VarChar(255)
+  primaryPhone   String?          @db.VarChar(255)
+  secondaryPhone String?          @db.VarChar(255)
+  fax            String?          @db.VarChar(255)
+  description    String?          @db.VarChar(255)
+  email          String?          @db.VarChar(255)
+  logoUrl        String?          @db.VarChar(255)
+  metadata       String?          @db.LongText
+  slug           String?          @db.VarChar(255)
+  isActive       Boolean?         @default(true)
+  isDefault      Boolean?         @default(false)
+  order          Int?             @default(1)
+  group          String?          @db.VarChar(255)
+  lender_partner lender_partner[]
+  zones          zones[]
 }
 
-// PartnerTypes
-model PartnerType {
-  id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  name        String?
-  description String?
-  isDefault   Int?
-  isActive    Int?
-  order       Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt @default(now())
+model logins {
+  id                            Int      @id @default(autoincrement())
+  ip                            String?  @db.VarChar(255)
+  data                          String?  @db.LongText
+  createdAt                     DateTime @db.DateTime(0)
+  userId                        Int?
+  managerId                     Int?
+  city                          String?  @db.Text
+  state                         String?  @db.Text
+  country                       String?  @db.Text
+  users_logins_userIdTousers    users?   @relation("logins_userIdTousers", fields: [userId], references: [id], map: "logins_ibfk_1")
+  users_logins_managerIdTousers users?   @relation("logins_managerIdTousers", fields: [managerId], references: [id], map: "logins_ibfk_2")
+
+  @@index([managerId], map: "managerId")
+  @@index([userId], map: "userId")
 }
 
-// Partners
-model Partner {
-  id                 Int       @id @default(autoincrement())
-  email              String    @unique
-  name               String?
-  description        String?
-  websiteUrl         String?
-  primaryPhone       String?
-  secondaryPhone     String?
-  logoUrl            String?
-  redLine            Float?
-  redLineUpdateDate  DateTime?
-  isActive           Boolean   @default(true)
-  group              String    @default("default")
-  order              Int       @default(1)
-  rank               Int       @default(1)
-  metadata           Json?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt @default(now())
-  userId             Int?
-  typeId             Int?
-  loginUrl           String?   @map(name: "loginUrl") // Renamed column
-  isPreferred        Int       @default(0)
-  config             Json?
-  user               User?     @relation(fields: [userId], references: [id])
-  type               PartnerType? @relation(fields: [typeId], references: [id])
+model manufacturers {
+  id   Int     @id
+  name String? @db.VarChar(255)
+  type String? @db.VarChar(255)
 }
 
-// PocRoles
-model PocRole {
-  id         Int      @id @default(autoincrement())
-  name       String?
-  isDefault  Boolean?
-  isActive   Boolean?
-  order      Int?
-}
-
-// Pocs
-model Poc {
-  id            Int       @id @default(autoincrement())
-  firstName     String?
-  lastName      String?
-  primaryPhone  String?
-  primaryEmail  String?
-  test          Int?
-  metadata      Json?
-  isActive      Boolean   @default(true)
-  group         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt @default(now())
+model meters {
+  id            Int      @id @default(autoincrement())
+  data          String?  @db.LongText
+  createdAt     DateTime @db.DateTime(0)
+  updatedAt     DateTime @db.DateTime(0)
   contactId     Int?
-  roleId        Int?
-  contact       Contact?  @relation(fields: [contactId], references: [id])
-  role          PocRole?  @relation(fields: [roleId], references: [id])
+  name          String?  @db.VarChar(50)
+  accountNumber String?  @db.VarChar(30)
+  meterNumber   String?  @db.VarChar(30)
 }
 
-// PoolTypes
-model PoolType {
+model notes {
+  id        Int       @id @default(autoincrement())
+  contents  String?   @db.Text
+  createdAt DateTime  @db.DateTime(0)
+  updatedAt DateTime  @db.DateTime(0)
+  contactId Int?
+  userId    Int?
+  test      Int?      @db.TinyInt
+  contacts  contacts? @relation(fields: [contactId], references: [id], onDelete: Cascade, map: "contact")
+  users     users?    @relation(fields: [userId], references: [id], onUpdate: SetNull, map: "user")
+
+  @@index([contactId], map: "contact")
+  @@index([userId], map: "user")
+}
+
+model options {
+  id                                                Int                @id @default(autoincrement())
+  name                                              String             @db.VarChar(255)
+  value                                             String?            @db.VarChar(255)
+  options                                           String?            @db.LongText
+  type                                              String             @db.VarChar(255)
+  slug                                              String             @db.VarChar(255)
+  group                                             String?            @db.VarChar(255)
+  isActive                                          Boolean            @default(true)
+  isVisible                                         Boolean?           @default(true)
+  isDefault                                         Boolean?           @default(false)
+  order                                             Int                @default(1)
+  notifications                                     String?            @db.LongText
+  contact_updates                                   contact_updates[]
+  internal_updates_internal_updates_fromIdTooptions internal_updates[] @relation("internal_updates_fromIdTooptions")
+  internal_updates_internal_updates_toIdTooptions   internal_updates[] @relation("internal_updates_toIdTooptions")
+}
+
+model order_statuses {
+  id        Int      @id @default(autoincrement())
+  isActive  Boolean? @default(true)
+  name      String?  @default("0") @db.VarChar(20)
+  isDefault Int?     @db.TinyInt
+}
+
+model order_types {
+  id        Int      @id @default(autoincrement())
+  isActive  Boolean? @default(true)
+  name      String?  @default("0") @db.VarChar(20)
+  isDefault Int?     @db.TinyInt
+  code      String?  @db.VarChar(11)
+  orders    orders[]
+}
+
+model orders {
+  id              Int          @id @default(autoincrement())
+  chargeId        String?      @unique(map: "transactionId") @db.VarChar(255)
+  amount          String?      @db.VarChar(255)
+  quantity        String?      @db.VarChar(255)
+  note            String?      @db.VarChar(255)
+  createdAt       DateTime     @db.DateTime(0)
+  updatedAt       DateTime     @db.DateTime(0)
+  organizationId  Int?
+  userId          Int?
+  statusId        Int?
+  filledById      Int?
+  stripeInvoiceId String?      @db.VarChar(20)
+  fillDate        DateTime?    @db.DateTime(0)
+  typeId          Int?
+  users           users?       @relation(fields: [filledById], references: [id], onUpdate: SetNull, map: "fk_filledById")
+  order_types     order_types? @relation(fields: [typeId], references: [id], onUpdate: SetNull, map: "fk_typeId")
+
+  @@index([filledById], map: "fk_filledById")
+  @@index([typeId], map: "fk_typeId")
+}
+
+model organizations {
+  id            Int             @id @default(autoincrement())
+  name          String          @db.VarChar(255)
+  description   String?         @db.VarChar(255)
+  isActive      Boolean         @default(true)
+  isDefault     Int             @default(0) @db.TinyInt
+  inActiveDate  DateTime?       @db.DateTime(0)
+  createdAt     DateTime        @db.DateTime(0)
+  updatedAt     DateTime        @db.DateTime(0)
+  config        String?         @db.LongText
+  redline       Float?          @db.Float
+  api_keys      api_keys[]
+  closing_forms closing_forms[]
+  contacts      contacts[]
+  contacts_copy contacts_copy[]
+  user_groups   user_groups[]
+  users         users[]
+}
+
+model panel_manufacturers {
+  id             Int              @id @default(autoincrement())
+  slug           String           @unique(map: "slug") @db.VarChar(255)
+  imageUrl       String?          @db.VarChar(255)
+  websiteUrl     String?          @db.VarChar(255)
+  description    String?          @default("") @db.VarChar(255)
+  origin         String?          @db.VarChar(255)
+  name           String           @db.VarChar(255)
+  isActive       Boolean          @default(true)
+  metadata       String?          @db.LongText
+  isDefault      Boolean?         @default(false)
+  order          Int?             @default(1)
+  product_panels product_panels[]
+  products       products[]
+}
+
+model partner_partner_sector {
+  createdAt         DateTime        @db.DateTime(0)
+  updatedAt         DateTime        @db.DateTime(0)
+  partner_sector_id Int
+  partner_id        Int
+  partner_sectors   partner_sectors @relation(fields: [partner_sector_id], references: [id], onDelete: Cascade, map: "partner_partner_sector_ibfk_1")
+  partners          partners        @relation(fields: [partner_id], references: [id], onDelete: Cascade, map: "partner_partner_sector_ibfk_2")
+
+  @@id([partner_sector_id, partner_id])
+  @@index([partner_id], map: "partner_id")
+}
+
+model partner_partner_type {
+  createdAt       DateTime      @db.DateTime(0)
+  updatedAt       DateTime      @db.DateTime(0)
+  partner_type_id Int
+  partner_id      Int
+  partner_types   partner_types @relation(fields: [partner_type_id], references: [id], onDelete: Cascade, map: "partner_partner_type_ibfk_1")
+  partners        partners      @relation(fields: [partner_id], references: [id], onDelete: Cascade, map: "partner_partner_type_ibfk_2")
+
+  @@id([partner_type_id, partner_id])
+  @@index([partner_id], map: "partner_id")
+}
+
+model partner_proposal_comments {
+  id                Int                @id @default(autoincrement())
+  comment           String?            @db.VarChar(255)
+  createdAt         DateTime           @db.DateTime(0)
+  updatedAt         DateTime           @db.DateTime(0)
+  userId            Int?
+  partnerProposalId Int?
+  partner_proposals partner_proposals? @relation(fields: [partnerProposalId], references: [id], map: "partner_proposal_comments_ibfk_1")
+
+  @@index([partnerProposalId], map: "partnerProposalId")
+}
+
+model partner_proposals {
+  id                        Int                         @id @default(autoincrement())
+  url                       String?                     @db.Text
+  isActive                  Boolean                     @default(true)
+  metadata                  String?                     @db.LongText
+  group                     String?                     @db.VarChar(255)
+  createdAt                 DateTime                    @db.DateTime(0)
+  updatedAt                 DateTime                    @db.DateTime(0)
+  contactId                 Int?
+  partnerId                 Int?
+  submittedById             Int?
+  selectDate                DateTime?                   @db.DateTime(0)
+  test                      Int?                        @db.TinyInt
+  contacts                  contacts[]
+  contacts_copy             contacts_copy[]
+  partner_proposal_comments partner_proposal_comments[]
+  users                     users?                      @relation(fields: [submittedById], references: [id], map: "partner_proposals_ibfk_1")
+
+  @@index([submittedById], map: "submittedById")
+}
+
+model partner_sectors {
+  id                     Int                      @id @default(autoincrement())
+  slug                   String                   @unique(map: "slug") @db.VarChar(255)
+  name                   String?                  @db.VarChar(255)
+  description            String?                  @db.VarChar(255)
+  isDefault              Boolean?
+  isActive               Boolean?
+  order                  Int?
+  createdAt              DateTime                 @db.DateTime(0)
+  updatedAt              DateTime                 @db.DateTime(0)
+  partner_partner_sector partner_partner_sector[]
+}
+
+model partner_types {
+  id                   Int                    @id @default(autoincrement())
+  slug                 String                 @unique(map: "slug") @db.VarChar(255)
+  name                 String?                @db.VarChar(255)
+  description          String?                @db.VarChar(255)
+  isDefault            Boolean?
+  isActive             Boolean?
+  order                Int?
+  createdAt            DateTime               @db.DateTime(0)
+  updatedAt            DateTime               @db.DateTime(0)
+  partner_partner_type partner_partner_type[]
+  partners             partners[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model partners {
+  id                                     Int                                      @id @default(autoincrement())
+  email                                  String                                   @db.VarChar(255)
+  name                                   String?                                  @db.VarChar(255)
+  description                            String?                                  @db.Text
+  websiteUrl                             String?                                  @db.VarChar(255)
+  primaryPhone                           String?                                  @db.VarChar(255)
+  secondaryPhone                         String?                                  @db.VarChar(255)
+  logoUrl                                String?                                  @db.VarChar(255)
+  redLine                                Float?                                   @db.Float
+  redLineUpdateDate                      DateTime?                                @db.DateTime(0)
+  isActive                               Boolean                                  @default(true)
+  group                                  String?                                  @default("default") @db.VarChar(255)
+  order                                  Int?                                     @default(1)
+  rank                                   Int?                                     @default(1)
+  metadata                               String?                                  @db.LongText
+  createdAt                              DateTime                                 @db.DateTime(0)
+  updatedAt                              DateTime                                 @db.DateTime(0)
+  userId                                 Int?
+  typeId                                 Int?
+  loginUrl                               String?                                  @db.Text
+  isPreferred                            Int?                                     @default(0) @db.TinyInt
+  config                                 String?                                  @db.LongText
+  closing_forms                          closing_forms[]
+  documents                              documents[]
+  equipment_residential_battery_partner  equipment_residential_battery_partner[]
+  equipment_residential_inverter_partner equipment_residential_inverter_partner[]
+  equipment_residential_module_partner   equipment_residential_module_partner[]
+  lender_partner                         lender_partner[]
+  partner_partner_sector                 partner_partner_sector[]
+  partner_partner_type                   partner_partner_type[]
+  partner_types                          partner_types?                           @relation(fields: [typeId], references: [id], onUpdate: SetNull, map: "type_fk")
+  users_partners_userIdTousers           users?                                   @relation("partners_userIdTousers", fields: [userId], references: [id], map: "user_fk")
+  products                               products[]
+  service_areas                          service_areas[]
+  services                               services[]
+  users_users_partnerIdTopartners        users[]                                  @relation("users_partnerIdTopartners")
+  zones                                  zones[]
+
+  @@index([typeId], map: "type_fk")
+  @@index([userId], map: "user_fk")
+}
+
+model poc_roles {
+  id        Int      @id @default(autoincrement())
+  name      String?  @db.VarChar(255)
+  isDefault Boolean?
+  isActive  Boolean?
+  order     Int?
+  pocs      pocs[]
+}
+
+model pocs {
+  id           Int        @id @default(autoincrement())
+  firstName    String?    @db.VarChar(255)
+  lastName     String?    @db.VarChar(255)
+  primaryPhone String?    @db.VarChar(255)
+  primaryEmail String?    @db.VarChar(255)
+  test         Boolean?
+  metadata     String?    @db.LongText
+  isActive     Boolean    @default(true)
+  group        String?    @db.VarChar(255)
+  createdAt    DateTime   @db.DateTime(0)
+  updatedAt    DateTime   @db.DateTime(0)
+  contactId    Int?
+  roleId       Int?
+  contacts     contacts?  @relation(fields: [contactId], references: [id], map: "pocs_ibfk_43")
+  poc_roles    poc_roles? @relation(fields: [roleId], references: [id], map: "pocs_ibfk_44")
+
+  @@index([contactId], map: "contactId")
+  @@index([roleId], map: "roleId")
+}
+
+model pool_types {
   id          Int      @id @default(autoincrement())
-  isActive    Boolean  @default(true)
-  name        String?
-  description String?
+  isActive    Boolean? @default(true)
+  name        String?  @unique(map: "name") @db.VarChar(255)
+  description String?  @db.VarChar(255)
   isDefault   Boolean  @default(false)
-  order       Int      @default(1)
+  order       Int?     @default(1)
 }
 
-// Pools
-model Pool {
+model pools {
   id          Int      @id @default(autoincrement())
-  isActive    Boolean  @default(true)
-  name        String?
-  description String?
+  isActive    Boolean? @default(true)
+  name        String?  @unique(map: "name") @db.VarChar(255)
+  description String?  @db.VarChar(255)
   isDefault   Boolean  @default(false)
-  order       Int      @default(1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt @default(now())
+  order       Int?     @default(1)
+  createdAt   DateTime @db.DateTime(0)
+  updatedAt   DateTime @db.DateTime(0)
 }
 
-// ProductBrand
-model ProductBrand {
-  id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  imageUrl    String?
-  websiteUrl  String?
-  description String   // NOT NULL
-  name        String   // NOT NULL
-  isActive    Boolean  @default(true)
-  metadata    Json?
-  isDefault   Boolean  @default(false)
-  order       Int      @default(1)
+model product_brands {
+  id          Int        @id @default(autoincrement())
+  slug        String     @unique(map: "slug") @db.VarChar(255)
+  imageUrl    String?    @db.VarChar(255)
+  websiteUrl  String?    @db.VarChar(255)
+  description String     @db.VarChar(255)
+  name        String     @db.VarChar(255)
+  isActive    Boolean    @default(true)
+  metadata    String?    @db.LongText
+  isDefault   Boolean    @default(false)
+  order       Int        @default(1)
+  products    products[]
 }
 
-// ProductManufacturer
-model ProductManufacturer {
-  id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  imageUrl    String?
-  websiteUrl  String?
-  description String   // NOT NULL
-  origin      String?
-  name        String   // NOT NULL
-  isActive    Boolean  @default(true)
-  metadata    Json?
-  isDefault   Boolean  @default(false)
-  order       Int      @default(1)
-}
-
-// ProductPanelType
-model ProductPanelType {
-  id       Int      @id @default(autoincrement())
-  name     String?  @unique
-  isActive Int      @default(1)
-}
-
-// ProductPanel
-model ProductPanel {
-  id             Int       @id @default(autoincrement())
-  imageUrl       String?
-  productUrl     String?
-  websiteUrl     String?
-  isActive       Boolean   @default(true)
-  metadata       Json?
-  isDefault      Boolean   @default(false)
-  isApproved     Boolean   @default(false)
-  order          Int       @default(1)
-  group          String?
-  nominalPower   String?
-  length         Int?
-  width          Int?
-  model          String?
-  tempCoeff      String?
-  NOCT           String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt @default(now())
-  manufacturerId Int?
-  typeId         Int?
-  manufacturer   ProductManufacturer? @relation(fields: [manufacturerId], references: [id])
-  type           ProductPanelType?     @relation(fields: [typeId], references: [id])
-}
-
-// ProductType
-model ProductType {
+model product_manufacturers {
   id          Int     @id @default(autoincrement())
-  slug        String  @unique
-  name        String?
+  slug        String  @unique(map: "slug") @db.VarChar(255)
+  imageUrl    String? @db.VarChar(255)
+  websiteUrl  String? @db.VarChar(255)
+  description String  @db.VarChar(255)
+  origin      String? @db.VarChar(255)
+  name        String  @db.VarChar(255)
+  isActive    Boolean @default(true)
+  metadata    String? @db.LongText
+  isDefault   Boolean @default(false)
+  order       Int     @default(1)
+}
+
+model product_panel_types {
+  id             Int              @id @default(autoincrement())
+  name           String?          @unique(map: "name") @db.VarChar(30)
+  isActive       Int?             @default(1)
+  product_panels product_panels[]
+}
+
+model product_panels {
+  id                  Int                  @id @default(autoincrement())
+  imageUrl            String?              @db.VarChar(255)
+  productUrl          String?              @db.VarChar(255)
+  websiteUrl          String?              @db.VarChar(255)
+  isActive            Boolean              @default(true)
+  metadata            String?              @db.LongText
+  isDefault           Boolean              @default(false)
+  isApproved          Boolean              @default(false)
+  order               Int                  @default(1)
+  group               String?              @db.VarChar(255)
+  nominalPower        String?              @db.VarChar(255)
+  length              Int?
+  width               Int?
+  model               String?              @db.VarChar(255)
+  tempCoeff           String?              @db.VarChar(255)
+  NOCT                String?              @db.VarChar(255)
+  createdAt           DateTime?            @default(now()) @db.DateTime(0)
+  updatedAt           DateTime?            @default(now()) @db.DateTime(0)
+  manufacturerId      Int?
+  typeId              Int?
+  product_panel_types product_panel_types? @relation(fields: [typeId], references: [id], map: "product_panel_type_fk")
+  panel_manufacturers panel_manufacturers? @relation(fields: [manufacturerId], references: [id], map: "product_panels_ibfk_1")
+
+  @@index([manufacturerId], map: "manufacturerId")
+  @@index([typeId], map: "product_panel_type_fk")
+}
+
+model product_types {
+  id          Int        @id @default(autoincrement())
+  slug        String     @db.VarChar(255)
+  name        String?    @db.VarChar(255)
   isActive    Boolean?
   isDefault   Boolean?
-  description String?
+  description String?    @db.VarChar(255)
   order       Int?
-  group       String?
+  group       String?    @db.VarChar(255)
+  products    products[]
 }
 
-// Product
-model Product {
-  id             Int       @id @default(autoincrement())
-  slug           String    @unique
-  imageUrl       String?
-  productUrl     String?
-  websiteUrl     String?
-  price          Float?
-  description    String    // NOT NULL
-  name           String    // NOT NULL
-  isActive       Boolean   @default(true)
-  metadata       Json?
-  isDefault      Boolean   @default(false)
-  isApproved     Boolean   @default(false)
-  order          Int       @default(1)
-  group          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt @default(now())
-  brandId        Int?
-  manufacturerId Int?
-  typeId         Int?
-  partnerId      Int?
-  brand          ProductBrand?   @relation(fields: [brandId], references: [id])
-  manufacturer   ProductManufacturer? @relation(fields: [manufacturerId], references: [id])
-  type           ProductType? @relation(fields: [typeId], references: [id])
-  partner        Partner? @relation(fields: [partnerId], references: [id])
+model products {
+  id                  Int                  @id @default(autoincrement())
+  slug                String               @unique(map: "slug") @db.VarChar(255)
+  imageUrl            String?              @db.VarChar(255)
+  productUrl          String?              @db.VarChar(255)
+  websiteUrl          String?              @db.VarChar(255)
+  price               Float?               @db.Float
+  description         String               @db.VarChar(255)
+  name                String               @db.VarChar(255)
+  isActive            Boolean              @default(true)
+  metadata            String?              @db.LongText
+  isDefault           Boolean              @default(false)
+  isApproved          Boolean              @default(false)
+  order               Int                  @default(1)
+  group               String?              @db.VarChar(255)
+  createdAt           DateTime             @db.DateTime(0)
+  updatedAt           DateTime             @db.DateTime(0)
+  brandId             Int?
+  manufacturerId      Int?
+  typeId              Int?
+  partnerId           Int?
+  product_brands      product_brands?      @relation(fields: [brandId], references: [id], map: "products_ibfk_1")
+  panel_manufacturers panel_manufacturers? @relation(fields: [manufacturerId], references: [id], map: "products_ibfk_2")
+  product_types       product_types?       @relation(fields: [typeId], references: [id], map: "products_ibfk_3")
+  partners            partners?            @relation(fields: [partnerId], references: [id], map: "products_ibfk_4")
+
+  @@index([brandId], map: "brandId")
+  @@index([manufacturerId], map: "manufacturerId")
+  @@index([partnerId], map: "partnerId")
+  @@index([typeId], map: "typeId")
 }
 
-// ProjectAttachmentType
-model ProjectAttachmentType {
-  id       Int      @id @default(autoincrement())
-  name     String?
-  isActive Boolean  @default(true)
+model project_attachment_types {
+  id       Int     @id @default(autoincrement())
+  name     String? @db.VarChar(255)
+  isActive Boolean @default(true)
 }
 
-// ProjectAttachment
-model ProjectAttachment {
-  id                  Int       @id @default(autoincrement())
-  name                String?
-  originalName        String?
-  key                 String?
-  location            String?
-  description         String?
-  isActive            Boolean   @default(true)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt @default(now())
+model project_attachments {
+  id                  Int      @id @default(autoincrement())
+  name                String?  @db.VarChar(255)
+  originalName        String?  @db.VarChar(255)
+  key                 String?  @db.VarChar(255)
+  location            String?  @db.VarChar(255)
+  description         String?  @db.VarChar(255)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @db.DateTime(0)
+  updatedAt           DateTime @db.DateTime(0)
   projectId           Int?
   projectAttachmentId Int?
   typeId              Int?
-  project             Project?  @relation(fields: [projectId], references: [id])
-  projectAttachment   ProjectAttachment? @relation(fields: [projectAttachmentId], references: [id])
-  type                ProjectAttachmentType? @relation(fields: [typeId], references: [id])
+
+  @@unique([projectId, projectAttachmentId], map: "project_attachments_projectId_projectAttachmentId_unique")
 }
 
-// ProjectBoard
-model ProjectBoard {
-  id            Int       @id @default(autoincrement())
-  name          String?
-  description   String?
-  isActive      Boolean   @default(true)
-  isPrimary     Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt @default(now())
+model project_boards {
+  id             Int      @id @default(autoincrement())
+  name           String?  @db.VarChar(255)
+  description    String?  @db.VarChar(255)
+  isActive       Boolean  @default(true)
+  isPrimary      Boolean  @default(true)
+  createdAt      DateTime @db.DateTime(0)
+  updatedAt      DateTime @db.DateTime(0)
   organizationId Int?
-  ownerId       Int?
-  userGroupId   Int?
-  organization  Organization? @relation(fields: [organizationId], references: [id])
-  owner         User? @relation(fields: [ownerId], references: [id])
-  userGroup     UserGroup? @relation(fields: [userGroupId], references: [id])
+  ownerId        Int?
+  userGroupId    Int?
 }
 
-// ProjectComment
-model ProjectComment {
-  id        Int       @id @default(autoincrement())
-  contents  String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt @default(now())
+model project_comments {
+  id        Int      @id @default(autoincrement())
+  contents  String?  @db.VarChar(255)
+  createdAt DateTime @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
   projectId Int?
   repId     Int?
-  project   Project? @relation(fields: [projectId], references: [id])
-  rep       User? @relation(fields: [repId], references: [id])
 }
 
-// ProjectLabel
-model ProjectLabel {
+model project_labels {
   id        Int     @id @default(autoincrement())
-  name      String?
-  color     String?
+  name      String? @db.VarChar(255)
+  color     String? @db.VarChar(255)
   isActive  Boolean @default(true)
   projectId Int?
-  project   Project? @relation(fields: [projectId], references: [id])
 }
 
-// ProjectLane
-model ProjectLane {
-  id            Int      @id @default(autoincrement())
-  name          String?
-  order         Int?
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt @default(now())
-  boardId       Int?
+model project_lanes {
+  id             Int      @id @default(autoincrement())
+  name           String?  @db.VarChar(255)
+  order          Int?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @db.DateTime(0)
+  updatedAt      DateTime @db.DateTime(0)
+  boardId        Int?
   projectBoardId Int?
-  board         ProjectBoard? @relation(fields: [boardId], references: [id])
-  projectBoard  ProjectBoard? @relation(fields: [projectBoardId], references: [id])
 }
 
-// ProjectUser
-model ProjectUser {
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+model project_user {
+  createdAt DateTime @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
   projectId Int
   userId    Int
-  project   Project @relation(fields: [projectId], references: [id])
-  user      User    @relation(fields: [userId], references: [id])
+
+  @@id([projectId, userId])
 }
 
-// ProjectUserContributor
-model ProjectUserContributor {
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+model project_user_contributor {
+  createdAt DateTime @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
   projectId Int
   userId    Int
-  project   Project @relation(fields: [projectId], references: [id])
-  user      User    @relation(fields: [userId], references: [id])
+
+  @@id([projectId, userId])
 }
 
-// Project
-model Project {
-  id              Int       @id @default(autoincrement())
-  name            String?
-  description     String?
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt @default(now())
-  organizationId  Int?
-  userGroupId     Int?
-  laneId          Int?
-  boardId         Int?
-  projectLaneId   Int?
-  contactId       Int?
-  ownerId         Int?
-  organization    Organization? @relation(fields: [organizationId], references: [id])
-  userGroup       UserGroup?  @relation(fields: [userGroupId], references: [id])
-  lane            ProjectLane? @relation(fields: [laneId], references: [id])
-  board           ProjectBoard? @relation(fields: [boardId], references: [id])
-  projectLane     ProjectLane? @relation(fields: [projectLaneId], references: [id])
-  contact         Contact? @relation(fields: [contactId], references: [id])
-  owner           User?    @relation(fields: [ownerId], references: [id])
-  labels          ProjectLabel[]
+model projects {
+  id             Int             @id @default(autoincrement())
+  name           String?         @db.VarChar(255)
+  description    String?         @db.VarChar(255)
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @db.DateTime(0)
+  updatedAt      DateTime        @db.DateTime(0)
+  organizationId Int?
+  userGroupId    Int?
+  laneId         Int?
+  boardId        Int?
+  projectLaneId  Int?
+  contactId      Int?
+  ownerId        Int?
+  contacts       contacts[]
+  contacts_copy  contacts_copy[]
+  tasks          tasks[]
 }
 
-// PromotionType
-model PromotionType {
+model promotion_types {
   id          Int      @id @default(autoincrement())
-  slug        String   @unique
-  name        String?
-  isActive    Boolean  @default(true)
-  isDefault   Boolean?
-  description String?
-  order       Int?
-  group       String?
-}
-
-// Promotion
-model Promotion {
-  id          Int       @id @default(autoincrement())
-  content     String?
+  slug        String   @db.VarChar(255)
+  name        String?  @db.VarChar(255)
   isActive    Boolean?
-  description String?
+  isDefault   Boolean?
+  description String?  @db.VarChar(255)
   order       Int?
-  group       String?
-  createdAt   DateTime  @default(now())
-  contactId   Int?
-  userId      Int?
-  typeId      Int?
-  test        Int?
-  contact     Contact?  @relation(fields: [contactId], references: [id])
-  user        User?     @relation(fields: [userId], references: [id])
-  type        PromotionType? @relation(fields: [typeId], references: [id])
+  group       String?  @db.VarChar(255)
 }
 
-// PropertyType
-model PropertyType {
-  id        Int     @id @default(autoincrement())
-  name      String  @db.VarChar(255)
-  isActive  Boolean @default(true)
-  isDefault Boolean
-  order     Int     @default(1)
+model promotions {
+  id              Int              @id @default(autoincrement())
+  content         String?          @db.VarChar(255)
+  isActive        Boolean?
+  description     String?          @db.VarChar(255)
+  order           Int?
+  group           String?          @db.VarChar(255)
+  createdAt       DateTime         @db.DateTime(0)
+  contactId       Int?
+  userId          Int?
+  typeId          Int?
+  test            Int?             @db.TinyInt
+  contacts        contacts?        @relation(fields: [contactId], references: [id], map: "promotions_ibfk_1")
+  users           users?           @relation(fields: [userId], references: [id], map: "promotions_ibfk_2")
+  incentive_types incentive_types? @relation(fields: [typeId], references: [id], map: "promotions_ibfk_3")
+
+  @@index([contactId], map: "contactId")
+  @@index([typeId], map: "typeId")
+  @@index([userId], map: "userId")
 }
 
-// ResourceCategory
-model ResourceCategory {
-  id            Int      @id @default(autoincrement())
-  name          String
-  description   String?
+model property_types {
+  id            Int             @id @default(autoincrement())
+  name          String          @default("") @db.VarChar(255)
+  isActive      Boolean         @default(true)
+  isDefault     Boolean
+  order         Int             @default(1)
+  contacts      contacts[]
+  contacts_copy contacts_copy[]
+}
+
+model resource_categories {
+  id            Int         @id @default(autoincrement())
+  name          String      @db.VarChar(255)
+  description   String?     @db.VarChar(255)
   isCommercial  Boolean?
   isResidential Boolean?
   isDefault     Boolean?
   isActive      Boolean?
   order         Int?
+  resources     resources[]
 }
 
-// ResourceFile
-model ResourceFile {
+model resource_files {
   id            Int      @id @default(autoincrement())
-  name          String?
-  description   String?
-  location      String
+  name          String?  @db.VarChar(255)
+  description   String?  @db.VarChar(255)
+  location      String   @db.VarChar(255)
   isCommercial  Boolean?
   isResidential Boolean?
   test          Boolean?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime @db.DateTime(0)
 }
 
-// Resource
-model Resource {
-  id            Int       @id @default(autoincrement())
-  name          String?
-  description   String?
-  isCommercial  Boolean?
-  isResidential Boolean?
-  test          Boolean?
-  createdAt     DateTime  @default(now())
-  categoryId    Int?
-  userId        Int?
-  location      String?
-  contentType   String?
-  fileName      String?
-  updatedAt     DateTime?
-  content       String?
-  category      ResourceCategory? @relation(fields: [categoryId], references: [id])
-  user          User?            @relation(fields: [userId], references: [id])
+model resources {
+  id                  Int                  @id @default(autoincrement())
+  name                String?              @db.VarChar(255)
+  description         String?              @db.VarChar(255)
+  isCommercial        Boolean?
+  isResidential       Boolean?
+  test                Boolean?
+  createdAt           DateTime             @db.DateTime(0)
+  categoryId          Int?
+  userId              Int?
+  location            String?              @db.Text
+  contentType         String?              @db.VarChar(23)
+  fileName            String?              @db.VarChar(200)
+  updatedAt           DateTime?            @db.DateTime(0)
+  content             String?              @db.Text
+  resource_categories resource_categories? @relation(fields: [categoryId], references: [id], map: "resources_ibfk_1")
+  users               users?               @relation(fields: [userId], references: [id], map: "resources_ibfk_2")
+
+  @@index([categoryId], map: "categoryId")
+  @@index([userId], map: "userId")
 }
 
-// Role
-model Role {
-  id          Int     @id @default(autoincrement())
-  slug        String  @unique
-  name        String?
-  views       Json?
-  description String?
-  isActive    Boolean @default(true)
-  isDefault   Boolean @default(false)
-  metadata    Json?
-  order       Int     @default(1)
-  group       String?
+model roles {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique(map: "slug") @db.VarChar(255)
+  name        String?  @db.VarChar(255)
+  views       String?  @db.LongText
+  description String?  @db.VarChar(255)
+  isActive    Boolean? @default(true)
+  isDefault   Boolean? @default(false)
+  metadata    String?  @db.LongText
+  order       Int?     @default(1)
+  group       String?  @db.VarChar(255)
+  users       users[]
 }
 
-// RoofType
-model RoofType {
-  id        Int     @id @default(autoincrement())
-  slug      String  @unique
-  name      String?
-  isActive  Boolean?
-  isDefault Boolean?
-  description String?
-  order     Int?
-  group     String?
+model roof_types {
+  id            Int             @id @default(autoincrement())
+  slug          String          @db.VarChar(255)
+  name          String?         @db.VarChar(255)
+  isActive      Boolean?
+  isDefault     Boolean?
+  description   String?         @db.VarChar(255)
+  order         Int?
+  group         String?         @db.VarChar(255)
+  contacts      contacts[]
+  contacts_copy contacts_copy[]
 }
 
-// ServiceArea
-model ServiceArea {
-  id           Int       @id @default(autoincrement())
-  isPrimary    Boolean   @default(false)
-  isActive     Boolean   @default(true)
-  coordinates  String   @db.VarChar(255) //This is a placeholder for the POINT type. Use raw SQL for operations.
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @default(now())
-  stateId      Int?
-  partnerId    Int?
-  state        State?    @relation(fields: [stateId], references: [id])
-  partner      Partner?  @relation(fields: [partnerId], references: [id])
+model service_areas {
+  id          Int                   @id @default(autoincrement())
+  isPrimary   Boolean?              @default(false)
+  isActive    Boolean               @default(true)
+  coordinates Unsupported("point")?
+  createdAt   DateTime              @db.DateTime(0)
+  updatedAt   DateTime              @db.DateTime(0)
+  stateId     Int?
+  partnerId   Int?
+  states      states?               @relation(fields: [stateId], references: [id], map: "service_areas_ibfk_1")
+  partners    partners?             @relation(fields: [partnerId], references: [id], onDelete: Cascade, map: "service_areas_ibfk_3")
+
+  @@index([partnerId], map: "service_areas_ibfk_3")
+  @@index([stateId], map: "stateId")
 }
 
-// Service
-model Service {
+model services {
   id          Int       @id @default(autoincrement())
-  slug        String    @unique
-  imageUrl    String?
-  serviceUrl  String?
-  websiteUrl  String?
-  price       Float?
-  description String?
-  name        String?
-  isActive    Boolean   @default(true)
-  metadata    Json?
-  group       String?
+  slug        String    @unique(map: "slug") @db.VarChar(255)
+  imageUrl    String?   @db.VarChar(255)
+  serviceUrl  String?   @db.VarChar(255)
+  websiteUrl  String?   @db.VarChar(255)
+  price       Float?    @db.Float
+  description String?   @db.VarChar(255)
+  name        String?   @db.VarChar(255)
+  isActive    Boolean?  @default(true)
+  metadata    String?   @db.LongText
+  group       String?   @db.VarChar(255)
   isDefault   Boolean?
   isApproved  Boolean?
-  order       Int       @default(1)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
+  order       Int?      @default(1)
+  createdAt   DateTime  @db.DateTime(0)
+  updatedAt   DateTime  @db.DateTime(0)
   partnerId   Int?
-  partner     Partner?  @relation(fields: [partnerId], references: [id])
+  partners    partners? @relation(fields: [partnerId], references: [id], map: "services_ibfk_1")
+
+  @@index([partnerId], map: "partnerId")
 }
 
-// SolarIncentive
-model SolarIncentive {
+model solar_incentives {
   id          Int       @id @default(autoincrement())
-  name        String?
+  name        String?   @db.VarChar(255)
   isActive    Boolean?
-  description String?
+  description String?   @db.VarChar(255)
   order       Int?
-  group       String?
+  group       String?   @db.VarChar(255)
   test        Boolean?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
+  createdAt   DateTime  @db.DateTime(0)
+  updatedAt   DateTime  @db.DateTime(0)
   contactId   Int?
-  contact     Contact?  @relation(fields: [contactId], references: [id])
+  contacts    contacts? @relation(fields: [contactId], references: [id], map: "solar_incentives_ibfk_1")
+
+  @@index([contactId], map: "contactId")
 }
 
-// State
-model State {
-  id      Int     @id @default(autoincrement())
-  code    String  @db.VarChar(2)
-  state   String  @db.VarChar(25)
-  country String  @db.VarChar(7)
+model states {
+  id            Int             @id @default(autoincrement())
+  code          String          @db.VarChar(2)
+  state         String          @db.VarChar(25)
+  country       String          @db.VarChar(7)
+  service_areas service_areas[]
 }
 
-// Task
-model Task {
-  id             Int       @id @default(autoincrement())
-  name           String
-  dateCompleted  DateTime?
-  dateAssigned   DateTime?
-  dueDate        DateTime?
-  slug           String?
-  isActive       Boolean   @default(true)
-  group          String?
-  metadata       Json?
-  isDefault      Boolean   @default(false)
-  order          Int       @default(1)
-  contactId      Int?
-  assignedToId   Int?
-  assignedById   Int?
-  projectId      Int?
-  userId         Int?
-  contact        Contact?  @relation(fields: [contactId], references: [id])
-  assignedTo     User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
-  assignedBy     User?     @relation("AssignedBy", fields: [assignedById], references: [id])
-  project        Project?  @relation(fields: [projectId], references: [id])
-  user           User?     @relation(fields: [userId], references: [id])
+model tasks {
+  id                              Int       @id @default(autoincrement())
+  name                            String    @unique(map: "name") @db.VarChar(255)
+  dateCompleted                   DateTime? @db.DateTime(0)
+  dateAssigned                    DateTime? @db.DateTime(0)
+  dueDate                         DateTime? @db.DateTime(0)
+  slug                            String?   @db.VarChar(255)
+  isActive                        Boolean?  @default(true)
+  group                           String?   @db.VarChar(255)
+  metadata                        String?   @db.LongText
+  isDefault                       Boolean?  @default(false)
+  order                           Int?      @default(1)
+  contactId                       Int?
+  assignedToId                    Int?
+  assignedById                    Int?
+  projectId                       Int?
+  userId                          Int?
+  contacts                        contacts? @relation(fields: [contactId], references: [id], map: "tasks_ibfk_1")
+  users_tasks_assignedToIdTousers users?    @relation("tasks_assignedToIdTousers", fields: [assignedToId], references: [id], map: "tasks_ibfk_2")
+  users_tasks_assignedByIdTousers users?    @relation("tasks_assignedByIdTousers", fields: [assignedById], references: [id], map: "tasks_ibfk_3")
+  projects                        projects? @relation(fields: [projectId], references: [id], map: "tasks_ibfk_4")
+  users_tasks_userIdTousers       users?    @relation("tasks_userIdTousers", fields: [userId], references: [id], map: "tasks_ibfk_5")
+
+  @@index([assignedById], map: "assignedById")
+  @@index([assignedToId], map: "assignedToId")
+  @@index([contactId], map: "contactId")
+  @@index([projectId], map: "projectId")
+  @@index([userId], map: "userId")
 }
 
-// TenantUser
-model TenantUser {
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @default(now())
+model tenant_user {
+  createdAt DateTime @db.DateTime(0)
+  updatedAt DateTime @db.DateTime(0)
   tenantId  Int
   userId    Int
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  tenants   tenants  @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "tenant_user_ibfk_1")
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "tenant_user_ibfk_2")
+
   @@id([tenantId, userId])
+  @@index([userId], map: "userId")
 }
 
-// Tenant
-model Tenant {
-  id          Int       @id @default(autoincrement())
-  slug        String    @unique
-  isActive    Boolean   @default(true)
-  config      Json?
-  name        String
-  description String?
-  isDefault   Boolean   @default(false)
-  order       Int       @default(1)
-  @@unique([name])
+model tenants {
+  id          Int           @id @default(autoincrement())
+  slug        String        @unique(map: "slug") @db.VarChar(255)
+  isActive    Boolean?      @default(true)
+  config      String?       @db.LongText
+  name        String        @unique(map: "name") @db.VarChar(255)
+  description String?       @db.VarChar(255)
+  isDefault   Boolean       @default(false)
+  order       Int?          @default(1)
+  tenant_user tenant_user[]
+  user_groups user_groups[]
 }
 
-// UserClosingform
-model UserClosingform {
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @default(now())
+model user_closingform {
+  createdAt      DateTime      @db.DateTime(0)
+  updatedAt      DateTime      @db.DateTime(0)
   closingform_id Int
   userId         Int
-  closingform    ClosingForm @relation(fields: [closingform_id], references: [id])
-  user           User        @relation(fields: [userId], references: [id])
+  closing_forms  closing_forms @relation(fields: [closingform_id], references: [id], onDelete: Cascade, map: "user_closingform_ibfk_1")
+  users          users         @relation(fields: [userId], references: [id], onDelete: Cascade, map: "user_closingform_ibfk_2")
+
   @@id([closingform_id, userId])
+  @@index([userId], map: "userId")
 }
 
-// UserGroupCommercialContact
-model UserGroupCommercialContact {
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @default(now())
+model user_group_commercial_contact {
+  createdAt   DateTime    @db.DateTime(0)
+  updatedAt   DateTime    @db.DateTime(0)
   ccontactId  Int
   userGroupId Int
-  ccontact    CommercialContact   @relation(fields: [ccontactId], references: [id])
-  userGroup   UserGroup            @relation(fields: [userGroupId], references: [id])
+  user_groups user_groups @relation(fields: [userGroupId], references: [id], onDelete: Cascade, map: "user_group_commercial_contact_ibfk_2")
+
   @@id([ccontactId, userGroupId])
+  @@index([userGroupId], map: "userGroupId")
 }
 
-// UserGroupContact
-model UserGroupContact {
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @default(now())
-  contactId  Int
+model user_group_contact {
+  createdAt   DateTime    @db.DateTime(0)
+  updatedAt   DateTime    @db.DateTime(0)
+  contactId   Int
   userGroupId Int
-  contact    Contact   @relation(fields: [contactId], references: [id])
-  userGroup  UserGroup @relation(fields: [userGroupId], references: [id])
+  contacts    contacts    @relation(fields: [contactId], references: [id], onDelete: Cascade, map: "user_group_contact_ibfk_1")
+  user_groups user_groups @relation(fields: [userGroupId], references: [id], onDelete: Cascade, map: "user_group_contact_ibfk_2")
+
   @@id([contactId, userGroupId])
+  @@index([userGroupId], map: "userGroupId")
 }
 
-model CommercialContact {
+model user_group_manager {
+  createdAt   DateTime    @db.DateTime(0)
+  updatedAt   DateTime    @db.DateTime(0)
+  userGroupId Int
+  userId      Int
+  user_groups user_groups @relation(fields: [userGroupId], references: [id], onDelete: Cascade, map: "user_group_manager_ibfk_1")
+  users       users       @relation(fields: [userId], references: [id], onDelete: Cascade, map: "user_group_manager_ibfk_2")
+
+  @@id([userGroupId, userId])
+  @@index([userId], map: "userId")
+}
+
+model user_group_types {
+  id          Int           @id @default(autoincrement())
+  isActive    Boolean?      @default(true)
+  name        String?       @unique(map: "name") @db.VarChar(255)
+  description String?       @db.VarChar(255)
+  isDefault   Boolean       @default(false)
+  order       Int?          @default(1)
+  slug        String?       @db.VarChar(11)
+  user_groups user_groups[]
+}
+
+model user_group_user {
+  createdAt   DateTime    @db.DateTime(0)
+  updatedAt   DateTime    @db.DateTime(0)
+  userGroupId Int
+  userId      Int
+  user_groups user_groups @relation(fields: [userGroupId], references: [id], onDelete: Cascade, map: "user_group_user_ibfk_1")
+  users       users       @relation(fields: [userId], references: [id], onDelete: Cascade, map: "user_group_user_ibfk_2")
+
+  @@id([userGroupId, userId])
+  @@index([userId], map: "userId")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model user_groups {
+  id                            Int                             @id @default(autoincrement())
+  isActive                      Boolean                         @default(true)
+  name                          String                          @unique(map: "name") @db.VarChar(255)
+  description                   String?                         @db.Text
+  isDefault                     Boolean                         @default(false)
+  order                         Int?                            @default(1)
+  tenantId                      Int?
+  managerId                     Int?
+  zoneId                        Int?
+  typeId                        Int?
+  picUrl                        String?                         @db.VarChar(100)
+  createdAt                     DateTime?                       @default(now()) @db.DateTime(0)
+  updatedAt                     DateTime?                       @db.DateTime(0)
+  organizationId                Int?
+  config                        String?                         @db.LongText
+  api_keys                      api_keys[]
+  user_group_commercial_contact user_group_commercial_contact[]
+  user_group_contact            user_group_contact[]
+  user_group_manager            user_group_manager[]
+  user_group_user               user_group_user[]
+  organizations                 organizations?                  @relation(fields: [organizationId], references: [id], onUpdate: SetNull, map: "organization_ibfk_1")
+  user_group_types              user_group_types?               @relation(fields: [zoneId], references: [id], onUpdate: SetNull, map: "user_group_type")
+  tenants                       tenants?                        @relation(fields: [tenantId], references: [id], map: "user_groups_ibfk_1")
+  zones                         zones?                          @relation(fields: [zoneId], references: [id], map: "user_groups_ibfk_2")
+  users                         users[]
+
+  @@index([organizationId], map: "organization_ibfk_1")
+  @@index([tenantId], map: "tenantId")
+  @@index([zoneId], map: "user_group_type")
+}
+
+model user_types {
   id          Int      @id @default(autoincrement())
-  firstName   String
-  lastName    String
-  email       String   @unique
-  phoneNumber String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-
-// UserGroupManager
-model UserGroupManager {
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
-  userGroupId Int
-  userId      Int
-  userGroup   UserGroup @relation(fields: [userGroupId], references: [id])
-  user        User      @relation(fields: [userId], references: [id])
-  @@id([userGroupId, userId])
-}
-
-// UserGroupType
-model UserGroupType {
-  id          Int       @id @default(autoincrement())
-  isActive    Boolean   @default(true)
-  name        String?
-  description String?
-  isDefault   Boolean   @default(false)
-  order       Int       @default(1)
-  slug        String?
-  @@unique([name])
-}
-
-// UserGroupUser
-model UserGroupUser {
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @default(now())
-  userGroupId Int
-  userId      Int
-  userGroup   UserGroup @relation(fields: [userGroupId], references: [id])
-  user        User      @relation(fields: [userId], references: [id])
-  @@id([userGroupId, userId])
-}
-
-// UserGroup
-model UserGroup {
-  id             Int        @id @default(autoincrement())
-  isActive       Boolean    @default(true)
-  name           String
-  description    String?
-  isDefault      Boolean    @default(false)
-  order          Int        @default(1)
-  tenantId       Int?
-  managerId      Int?
-  zoneId         Int?
-  typeId         Int?
-  picUrl         String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  organizationId Int?
-  config         Json?
-  tenant         Tenant?    @relation(fields: [tenantId], references: [id])
-  manager        User?      @relation(fields: [managerId], references: [id])
-  type           UserGroupType? @relation(fields: [typeId], references: [id])
-  users          UserGroupUser[]
-  organization   Organization?  @relation(fields: [organizationId], references: [id])
-  @@unique([name])
-}
-
-// UserType
-model UserType {
-  id          Int     @id @default(autoincrement())
-  slug        String  @unique
-  name        String?
-  description String?
+  slug        String   @unique(map: "slug") @db.VarChar(255)
+  name        String?  @db.VarChar(255)
+  description String?  @db.VarChar(255)
   isDefault   Boolean?
   isActive    Boolean?
   order       Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @db.DateTime(0)
+  updatedAt   DateTime @db.DateTime(0)
 }
 
-// User
-model User {
-  id                    Int        @id @default(autoincrement())
-  email                 String     @unique
-  password              String?
-  firstName             String
-  lastName              String?
-  primaryPhone          String?
-  picUrl                String?
-  passwordHash          String?
-  isSpanishSpeaker      Boolean    @default(false)
-  lastLoginDate         DateTime?
-  isActive              Boolean    @default(true)
-  inActiveDate          DateTime?
-  metadata              Json?
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
-  userGroupId           Int?
-  roleId                Int?
-  isManager             Boolean?
-  baseline              Float?
-  profileId             Int?
-  partnerId             Int?
-  apiKey                String?
-  isSelfGenOnly         Boolean    @default(false)
-  timezone              Json?
-  lastManagerLoginDate  DateTime?
-  fid                   String?
-  notifications         Json?
-  organizationId        Int?
-  stripeCustomerId      String?
-  config                Json?
-  userGroup             UserGroup? @relation(fields: [userGroupId], references: [id])
-  role                  Role?      @relation(fields: [roleId], references: [id])
-  partner               Partner?   @relation(fields: [partnerId], references: [id])
-  organization          Organization? @relation(fields: [organizationId], references: [id])
-  @@index([userGroupId], name: "userGroupId")
-  @@index([roleId], name: "roleId")
-  @@index([partnerId], name: "partnerId")
-  @@index([organizationId], name: "organizationId")
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model users {
+  id                                 Int                    @id @default(autoincrement())
+  email                              String                 @unique(map: "email") @default("") @db.VarChar(155)
+  password                           String?                @default("") @db.VarChar(255)
+  firstName                          String                 @default("") @db.VarChar(155)
+  lastName                           String?                @db.VarChar(155)
+  primaryPhone                       String?                @db.VarChar(255)
+  picUrl                             String?                @db.Text
+  passwordHash                       String?                @db.VarChar(255)
+  isSpanishSpeaker                   Boolean                @default(false)
+  lastLoginDate                      DateTime?              @db.DateTime(0)
+  isActive                           Boolean?               @default(true)
+  inActiveDate                       DateTime?              @db.DateTime(0)
+  metadata                           String?                @db.LongText
+  createdAt                          DateTime               @db.DateTime(0)
+  updatedAt                          DateTime               @db.DateTime(0)
+  userGroupId                        Int?
+  roleId                             Int?
+  isManager                          Int?                   @db.TinyInt
+  baseline                           Float?                 @db.Float
+  profileId                          Int?
+  partnerId                          Int?
+  apiKey                             String?                @db.VarChar(10)
+  isSelfGenOnly                      Boolean                @default(false)
+  timezone                           String?                @db.LongText
+  lastManagerLoginDate               DateTime?              @db.DateTime(0)
+  fid                                String?                @db.VarChar(100)
+  notifications                      String?                @db.LongText
+  organizationId                     Int?
+  stripeCustomerId                   String?                @db.VarChar(20)
+  config                             String?                @db.LongText
+  activities                         activities[]
+  adders                             adders[]
+  api_keys                           api_keys[]
+  app_emails                         app_emails[]
+  app_events                         app_events[]
+  app_phones                         app_phones[]
+  appointments                       appointments[]
+  auto_automations                   auto_automations[]
+  calendars                          calendars[]
+  canvas_user_areas                  canvas_user_areas[]
+  closing_form_updates               closing_form_updates[]
+  closing_forms                      closing_forms[]
+  closingform_comments               closingform_comments[]
+  company_poc_temps                  company_poc_temps[]
+  contact_comments                   contact_comments[]
+  contact_events                     contact_events[]
+  contact_updates                    contact_updates[]
+  contact_user                       contact_user[]
+  contacts                           contacts[]
+  contacts_copy                      contacts_copy[]
+  documents                          documents[]
+  incentives                         incentives[]
+  integrations                       integrations[]
+  internal_updates                   internal_updates[]
+  lender_proposals                   lender_proposals[]
+  logins_logins_userIdTousers        logins[]               @relation("logins_userIdTousers")
+  logins_logins_managerIdTousers     logins[]               @relation("logins_managerIdTousers")
+  notes                              notes[]
+  orders                             orders[]
+  partner_proposals                  partner_proposals[]
+  partners_partners_userIdTousers    partners[]             @relation("partners_userIdTousers")
+  promotions                         promotions[]
+  resources                          resources[]
+  tasks_tasks_assignedToIdTousers    tasks[]                @relation("tasks_assignedToIdTousers")
+  tasks_tasks_assignedByIdTousers    tasks[]                @relation("tasks_assignedByIdTousers")
+  tasks_tasks_userIdTousers          tasks[]                @relation("tasks_userIdTousers")
+  tenant_user                        tenant_user[]
+  user_closingform                   user_closingform[]
+  user_group_manager                 user_group_manager[]
+  user_group_user                    user_group_user[]
+  organizations                      organizations?         @relation(fields: [organizationId], references: [id], onUpdate: SetNull, map: "organizations_fk_1")
+  partners_users_partnerIdTopartners partners?              @relation("users_partnerIdTopartners", fields: [partnerId], references: [id], map: "partnerId")
+  user_groups                        user_groups?           @relation(fields: [userGroupId], references: [id], map: "users_ibfk_1")
+  roles                              roles?                 @relation(fields: [roleId], references: [id], map: "users_ibfk_2")
+
+  @@index([organizationId], map: "organizations_fk_1")
+  @@index([partnerId], map: "partnerId")
+  @@index([roleId], map: "roleId")
+  @@index([userGroupId], map: "userGroupId")
 }
 
-// UtilityProvider
-model UtilityProvider {
-  id        Int    @id @default(autoincrement())
-  name      String?
-  shortName String?
-  state     String?
-  ratePlans Json?
-  @@index([state], name: "state_index")
+model utility_providers {
+  id        Int     @id @default(autoincrement())
+  name      String? @db.VarChar(255)
+  shortName String? @db.VarChar(255)
+  state     String? @db.VarChar(255)
+  ratePlans String? @db.LongText
 }
 
-// Zone
-model Zone {
-  id          Int       @id @default(autoincrement())
-  county      String?
-  state       String?
-  city        String?
-  postalCode  String?
-  address1    String?
-  address2    String?
-  metadata    Json?
+model zones {
+  id          Int                   @id @default(autoincrement())
+  county      String?               @db.VarChar(255)
+  state       String?               @db.VarChar(255)
+  city        String?               @db.VarChar(255)
+  postalCode  String?               @db.VarChar(255)
+  address1    String?               @db.VarChar(255)
+  address2    String?               @db.VarChar(255)
+  metadata    String?               @db.LongText
   isPrimary   Boolean?
   isActive    Boolean?
-  coordinates String   @db.VarChar(255) //This is a placeholder for the POINT type. Use raw SQL for operations.
+  coordinates Unsupported("point")?
   partnerId   Int?
   lenderId    Int?
-  partner     Partner?  @relation(fields: [partnerId], references: [id])
-  lender      Lender?   @relation(fields: [lenderId], references: [id])
-  @@index([partnerId], name: "partnerId")
-  @@index([lenderId], name: "lenderId")
+  user_groups user_groups[]
+  partners    partners?             @relation(fields: [partnerId], references: [id], map: "zones_ibfk_1")
+  lenders     lenders?              @relation(fields: [lenderId], references: [id], map: "zones_ibfk_2")
+
+  @@index([lenderId], map: "lenderId")
+  @@index([partnerId], map: "partnerId")
 }

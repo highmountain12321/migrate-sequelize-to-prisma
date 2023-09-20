@@ -3,8 +3,7 @@ const only = require('only');
 const assign = Object.assign;
 const _ = require('lodash');
 const moment = require('moment');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
 
 exports.list_employees = async function (req, res) {
     const users = await prisma.user.findMany();

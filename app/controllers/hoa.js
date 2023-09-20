@@ -7,10 +7,9 @@ const { wrap: async } = require('co');
 const only = require('only');
 const assign = Object.assign;
 const _ = require('lodash');
-const { models } = require('../../sequelize');
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
+
 // Other required modules remain unchanged
 
 exports.list = async function (req, res) {

@@ -1,4 +1,4 @@
-const { prisma } = require("../../../prisma/client");
+const prisma = require('../../lib/prisma');
 
 exports.create = async function(req, res, next) {
     if (req.body.id) {

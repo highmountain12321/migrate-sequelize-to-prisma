@@ -1,4 +1,5 @@
-const prisma = require("../../../prisma/client");
+const prisma = require('../../lib/prisma');
+
 const { Services } = require("../../services");
 
 exports.create = async function (req, res, next) {
