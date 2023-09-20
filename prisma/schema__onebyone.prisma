@@ -464,3 +464,18 @@ model AppEvent {
 
   @@map("app_event")
 }
+
+
+model SolarIncentive {
+  id          Int      @id @default(autoincrement())
+  name        String
+  isActive    Boolean  @default(true)
+  description String?
+  order       Int      @default(1)
+  group       String   @default("default")
+  test        Boolean?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("solar_incentive")
+}
