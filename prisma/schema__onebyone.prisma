@@ -124,3 +124,120 @@ model ContactEvent {
 
   createdAt  DateTime @default(now())
 }
+
+model ClosingformCommentType {
+  id        Int     @id @default(autoincrement())
+  name      String?
+  isActive  Boolean @default(true)
+  isDefault Boolean
+}
+
+model ClosingformComment {
+  id       Int     @id @default(autoincrement())
+  comment  String?
+  isActive Boolean @default(true)
+}
+
+model ClosingFormStatus {
+  id        Int     @id @default(autoincrement())
+  name      String?
+  slug      String?
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+}
+
+model ClosingFormUpdateType {
+  id          Int     @id @default(autoincrement())
+  slug        String  @unique
+  name        String
+  description String?
+  isDefault   Boolean @default(false)
+  isActive    Boolean @default(true)
+  isVisible   Boolean @default(false)
+  order       Int     @default(1)
+  group       String  @default("default")
+  section     String  @default("contact")
+}
+// In the Sequelize model you provided, the beforeValidate hook is used to transform the slug field based on the name field if the slug isn't set. While Prisma's schema language doesn't directly support hooks like this, you can handle this logic in your application layer when creating or updating ClosingFormUpdateType records.
+
+model ClosingFormUpdate {
+  id     Int     @id @default(autoincrement())
+  note   String?
+  tags   Json?
+  group  String  @default("default")
+
+  createdAt DateTime @default(now())
+}
+// In the Sequelize model, you have a beforeCreate hook to trim the note field. In Prisma, this kind of transformation would typically be done in your application logic before persisting the data to the database.
+
+model ClosingForm {
+  id             Int      @id @default(autoincrement())
+  resubmitDate   DateTime?
+  isApproved     Boolean?
+  isActive       Boolean  @default(true)
+  taxReviewAddon Boolean  @default(false)
+  dateApproved   DateTime?
+  statusId       Int
+  partnerId      Int
+  contactId      Int
+
+  status   ClosingFormStatus @relation(fields: [statusId], references: [id])
+  partner  Partner            @relation(fields: [partnerId], references: [id])
+  contact  Contact            @relation(fields: [contactId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// These are for the ClosingForm
+// model ClosingFormStatus {
+//   id          Int            @id @default(autoincrement())
+//   name        String
+//   slug        String
+//   isActive    Boolean        @default(true)
+//   isDefault   Boolean        @default(false)
+//   ClosingForm ClosingForm[]
+// }
+
+// model Partner {
+//   id          Int            @id @default(autoincrement())
+//   name        String
+//   url         String
+//   ClosingForm ClosingForm[]
+// }
+
+// model Contact {
+//   id                Int       @id @default(autoincrement())
+//   busName           String?
+//   firstName         String?
+//   lastName          String?
+//   genTypeId         Int?
+//   users             User[]
+//   partnerProposals  PartnerProposal[]
+//   ClosingForm       ClosingForm[]
+
+//   genType GenType @relation(fields: [genTypeId], references: [id])
+// }
+
+// model GenType {
+//   id      Int      @id @default(autoincrement())
+//   name    String
+//   Contact Contact[]
+// }
+
+// model User {
+//   id      Int      @id @default(autoincrement())
+//   name    String
+//   Contact Contact[]
+// }
+
+// model PartnerProposal {
+//   id         Int     @id @default(autoincrement())
+//   selectDate DateTime
+//   partnerId  Int
+//   contactId  Int
+
+//   partner Partner @relation(fields: [partnerId], references: [id])
+//   contact Contact @relation(fields: [contactId], references: [id])
+// }
+
