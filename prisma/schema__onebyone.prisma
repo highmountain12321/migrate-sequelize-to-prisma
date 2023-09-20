@@ -1,0 +1,35 @@
+// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+model Appointment {
+  id              Int      @id @default(autoincrement())
+  utcStartDateTime DateTime?
+  timezoneOffset  String?
+  startDate       String?
+  endDate         String?
+  fromDate        DateTime?
+  toDate          DateTime?
+  metadata        Json?
+  cancelledAt     DateTime?
+  timezone        Json?
+  tzOffset        Int?
+  test            Boolean?
+  isActive        Boolean @default(true)
+  group           String  @default("default")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime? @updatedAt
+  // You can add relationships and indexes here if needed.
+}
+
+// If you have any other models or relationships, define them below.
