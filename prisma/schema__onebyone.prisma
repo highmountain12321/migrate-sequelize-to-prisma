@@ -308,3 +308,123 @@ model Document {
 
   createdAt     DateTime @default(now()) @map("created_at")
 }
+
+
+model Manufacturer {
+  id   Int    @id @default(autoincrement())
+  name String?
+  type String?
+
+  @@map("manufacturer")
+}
+
+model EquipmentResidentialBattery {
+  id                    Int    @id @default(autoincrement())
+  part_number           String?
+  spec_sheet            String?
+  usable_energy         String?
+  charge_power          String?
+  discharge_power       String?
+  peak_discharge_power  String?
+  peak_discharge_duration String?
+  product_image_path    String?
+
+  @@map("equipment_residential_battery")
+}
+
+model EquipmentResidentialInverter {
+  id                       Int     @id @default(autoincrement())
+  display_name             String?
+  model                    String?
+  type                     String?
+  efficiency               String?
+  spec_sheet               String?
+  man_part_num             String?
+  ced_part_num             String?
+  soligent_part_num        String?
+  jexpro_num               String?
+  rated_ac                 Int?
+  max_ac                   Int?
+  max_dc_input             String?
+  max_connected_panels     Int?
+  number_of_mppt           Int?
+  inputs_per_mppt          String?
+  max_input_voltage        Int?
+  max_input_current        Int?
+  max_output_current_v     String?
+  min_breaker_rating       String?
+  cec_weighted_eff_percent String?
+  nominal_input_voltage    String?
+  nominal_dc_input_voltage String?
+  optimizer_max_output_current String?
+  max_string_wattage_size  String?
+  under_module_writing     String?
+  optimizers               String?
+  rated_dc_input_current   String?
+  max_string_size          String?
+  min_string_size          String?
+  max_output_current       Int?
+  created                  String?
+  modified                 String?
+  expired                  String?
+  part_number              String?
+  max_input_power          Int?
+  nominal_input_current    Int?
+  max_input_string_size    String?
+  max_input_string_quantity String?
+  max_input_string_power   String?
+  max_output_voltage       Int?
+  max_output_wattage       Int?
+  min_output               String?
+  battery_ready_inverter   String?
+  cad_type                 String?
+  min_modules_per_string   Int?
+  min_mpp_voltage          Int?
+  max_voltage_drop         Float?
+  combo                    String?
+  auto_select              String?
+  use_png_spec             String?
+  includes_ev_charger      String?
+  manufacturername         String?
+  createdAt                DateTime @default(now()) 
+  updatedAt                DateTime @updatedAt
+
+  @@map("equipment_residential_inverter")
+}
+
+model EquipmentResidentialModule {
+  id                   Int       @id @default(autoincrement())
+  length               Float?
+  width                Float?
+  name                 String?
+  display_name         String?
+  wattage              Float?
+  degradation          Float?
+  spec_sheet           String?
+  part_number          String?
+  ced_part_number      String?
+  cad_part_number      String?
+  max_power_voltage    Float?
+  max_power_current    Float?
+  open_circuit_voltage Float?
+  short_circuit_current Float?
+  ac_module            String?
+  dwg_file             String?
+  created              String?
+  modified             String?
+  expired              DateTime?
+  cell_quantity        Int?
+  max_fuse_rating      Int?
+  thickness            Float?
+  backsheet_color      String?
+  frame_color          String?
+  cad_ready            Boolean?
+  weight               Float?
+  spec_images          Json?
+  use_png_spec         Boolean?
+  manufacturername     String?
+  createdAt            DateTime @default(now()) 
+  updatedAt            DateTime @updatedAt
+  
+  @@map("equipment_residential_module")
+}
