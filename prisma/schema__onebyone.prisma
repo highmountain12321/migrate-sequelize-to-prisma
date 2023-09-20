@@ -523,3 +523,55 @@ model LenderProposal {
 
   @@map("lender_proposal")
 }
+
+
+model OrderStatus {
+  id        Int     @id @default(autoincrement())
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+  name      String
+  
+  @@map("order_status")
+}
+model OrderType {
+  id        Int     @id @default(autoincrement())
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+  name      String
+  code      String
+  orders    Order[]           //Added as recommended
+  @@map("order_type")
+}
+model Order {
+  id              Int         @id @default(autoincrement())
+  fillDate        DateTime?   // Nullable because it is not specified as required
+  chargeId        String?
+  stripeInvoiceId String?
+  amount          String?
+  quantity        Int?
+  note            String?
+  statusId        Int
+  status          OrderStatus @relation(fields: [statusId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("order")
+}
+////// This is equivalent for the hook beforeCreate 
+// const { PrismaClient } = require('@prisma/client');
+
+// const prisma = new PrismaClient();
+
+// prisma.$use(async (params, next) => {
+//     if (params.model === 'Order' && params.action === 'create') {
+//         if (!params.args.data.statusId) {
+//             const defaultStatus = await prisma.orderStatus.findFirst({
+//                 where: { isDefault: true }
+//             });
+//             params.args.data.statusId = defaultStatus.id;
+//         }
+//     }
+//     return next(params);
+// });
+
+// // Use prisma to make further database calls.
