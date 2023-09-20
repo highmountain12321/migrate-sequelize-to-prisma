@@ -663,3 +663,27 @@ model PartnerSector {
 //     data: data
 //   });
 // }
+
+model PoolType {
+  id          Int     @id @default(autoincrement())
+  isActive    Boolean @default(true)
+  name        String  @unique
+  description String?
+  isDefault   Boolean @default(false)
+  order       Int     @default(1)
+
+  @@map("pool_type")
+}
+
+model Pool {
+  id          Int     @id @default(autoincrement())
+  isActive    Boolean @default(true)
+  name        String  @unique
+  description String?
+  isDefault   Boolean @default(false)
+  order       Int     @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pool")
+}
