@@ -575,3 +575,91 @@ model Order {
 // });
 
 // // Use prisma to make further database calls.
+
+
+model Partner {
+  id                 Int             @id @default(autoincrement())
+  email              String
+  name               String?
+  description        String?
+  websiteUrl         String?
+  primaryPhone       String?
+  secondaryPhone     String?
+  logoUrl            String?
+  loginUrl           String?
+  isPreferred        Boolean         @default(false)
+  isActive           Boolean         @default(true)
+  order              Int             @default(1)
+  redline            Float?
+  virtServiceAreaStates String[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  
+  sectors            PartnerSector[]
+
+  @@map("partner")
+}
+model PartnerType {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String?
+  description String?
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  order       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("partner_type")
+}
+// HOOK EQUIVALENT
+// function generateSlug(name) {
+//   if (name) {
+//     return name.toLowerCase().replace(/ /g, "-");
+//   }
+//   return null;
+// }
+
+// async function createPartnerType(data) {
+//   if (!data.slug && data.name) {
+//     data.slug = generateSlug(data.name);
+//   } else if (data.slug) {
+//     data.slug = generateSlug(data.slug);
+//   }
+
+//   return await prisma.partnerType.create({
+//     data: data
+//   });
+// }
+
+model PartnerSector {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String?
+  description String?
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  order       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("partner_sector")
+}
+// function generateSlug(name) {
+//   if (name) {
+//     return name.toLowerCase().replace(/ /g, "-");
+//   }
+//   return null;
+// }
+
+// async function createPartnerSector(data) {
+//   if (!data.slug && data.name) {
+//     data.slug = generateSlug(data.name);
+//   } else if (data.slug) {
+//     data.slug = generateSlug(data.slug);
+//   }
+
+//   return await prisma.partnerSector.create({
+//     data: data
+//   });
+// }
