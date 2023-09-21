@@ -1,9 +1,9 @@
 'use strict';
 
-const { PrismaClient } = require('@prisma/client');
 const { Services } = require('../services');
 const jwt = require('jsonwebtoken');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
+
 
 exports.isActive = async function(req, res, next) {
     // This function is empty, nothing to convert here

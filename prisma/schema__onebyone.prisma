@@ -278,4 +278,469 @@ model Poc {
 }
 
 
-// Similarly, add relations for other models here
+model DocumentType {
+  id            Int     @id @default(autoincrement())
+  slug          String  @unique
+  name          String
+  description   String?
+  isCommercial  Boolean @default(false)
+  isResidential Boolean @default(false)
+  isDefault     Boolean @default(false)
+  isActive      Boolean @default(true)
+  order         Int     @default(1)
+  group         String  @default("default")
+  section       String  @default("contact")
+}
+// We don't have the beforeValidate hook in Prisma. In Prisma, this kind of logic usually resides in your application layer (for instance, before saving a model). If you need this slug generation, you would typically handle it in the logic before creating/updating the model in the database.
+
+model Document {
+  id            Int      @id @default(autoincrement())
+  originalName  String?
+  key           String?
+  externalUpload Boolean?
+  tags          Json?    // Assuming the JSON here will be represented as Json in Prisma
+  metadata      Json?    // Same assumption as above
+  versionId     String   @map("version_id")
+  location      String
+  isActive      Boolean  @default(true)
+  order         Int      @default(1)
+  test          Int?     // Assuming this is supposed to be an integer based on the Sequelize model
+
+  createdAt     DateTime @default(now()) @map("created_at")
+}
+
+
+model Manufacturer {
+  id   Int    @id @default(autoincrement())
+  name String?
+  type String?
+
+  @@map("manufacturer")
+}
+
+model EquipmentResidentialBattery {
+  id                    Int    @id @default(autoincrement())
+  part_number           String?
+  spec_sheet            String?
+  usable_energy         String?
+  charge_power          String?
+  discharge_power       String?
+  peak_discharge_power  String?
+  peak_discharge_duration String?
+  product_image_path    String?
+
+  @@map("equipment_residential_battery")
+}
+
+model EquipmentResidentialInverter {
+  id                       Int     @id @default(autoincrement())
+  display_name             String?
+  model                    String?
+  type                     String?
+  efficiency               String?
+  spec_sheet               String?
+  man_part_num             String?
+  ced_part_num             String?
+  soligent_part_num        String?
+  jexpro_num               String?
+  rated_ac                 Int?
+  max_ac                   Int?
+  max_dc_input             String?
+  max_connected_panels     Int?
+  number_of_mppt           Int?
+  inputs_per_mppt          String?
+  max_input_voltage        Int?
+  max_input_current        Int?
+  max_output_current_v     String?
+  min_breaker_rating       String?
+  cec_weighted_eff_percent String?
+  nominal_input_voltage    String?
+  nominal_dc_input_voltage String?
+  optimizer_max_output_current String?
+  max_string_wattage_size  String?
+  under_module_writing     String?
+  optimizers               String?
+  rated_dc_input_current   String?
+  max_string_size          String?
+  min_string_size          String?
+  max_output_current       Int?
+  created                  String?
+  modified                 String?
+  expired                  String?
+  part_number              String?
+  max_input_power          Int?
+  nominal_input_current    Int?
+  max_input_string_size    String?
+  max_input_string_quantity String?
+  max_input_string_power   String?
+  max_output_voltage       Int?
+  max_output_wattage       Int?
+  min_output               String?
+  battery_ready_inverter   String?
+  cad_type                 String?
+  min_modules_per_string   Int?
+  min_mpp_voltage          Int?
+  max_voltage_drop         Float?
+  combo                    String?
+  auto_select              String?
+  use_png_spec             String?
+  includes_ev_charger      String?
+  manufacturername         String?
+  createdAt                DateTime @default(now()) 
+  updatedAt                DateTime @updatedAt
+
+  @@map("equipment_residential_inverter")
+}
+
+model EquipmentResidentialModule {
+  id                   Int       @id @default(autoincrement())
+  length               Float?
+  width                Float?
+  name                 String?
+  display_name         String?
+  wattage              Float?
+  degradation          Float?
+  spec_sheet           String?
+  part_number          String?
+  ced_part_number      String?
+  cad_part_number      String?
+  max_power_voltage    Float?
+  max_power_current    Float?
+  open_circuit_voltage Float?
+  short_circuit_current Float?
+  ac_module            String?
+  dwg_file             String?
+  created              String?
+  modified             String?
+  expired              DateTime?
+  cell_quantity        Int?
+  max_fuse_rating      Int?
+  thickness            Float?
+  backsheet_color      String?
+  frame_color          String?
+  cad_ready            Boolean?
+  weight               Float?
+  spec_images          Json?
+  use_png_spec         Boolean?
+  manufacturername     String?
+  createdAt            DateTime @default(now()) 
+  updatedAt            DateTime @updatedAt
+  
+  @@map("equipment_residential_module")
+}
+
+model AppEventCategory {
+  id          Int     @id @default(autoincrement())
+  name        String?
+  description String?
+  slug        String?
+  isActive    Boolean @default(true)
+  
+  @@map("app_event_category")
+}
+model AppEventLevel {
+  id        Int     @id @default(autoincrement())
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+  name      String?
+  slug      String?
+
+  @@map("app_event_level")
+}
+model AppEventType {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  slug        String
+  isActive    Boolean @default(true)
+
+  @@map("app_event_type")
+}
+model AppEvent {
+  id          Int     @id @default(autoincrement())
+  isDismissed Boolean
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  @@map("app_event")
+}
+
+
+model SolarIncentive {
+  id          Int      @id @default(autoincrement())
+  name        String
+  isActive    Boolean  @default(true)
+  description String?
+  order       Int      @default(1)
+  group       String   @default("default")
+  test        Boolean?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("solar_incentive")
+}
+
+
+model Lender {
+  id            Int      @id @default(autoincrement())
+  name          String
+  websiteUrl    String?
+  primaryPhone  String?
+  secondaryPhone String?
+  fax           String?
+  description   String?
+  email         String?
+  logoUrl       String?
+  metadata      Json?
+  slug          String?  @unique
+  isActive      Boolean  @default(true)
+  isDefault     Boolean? @default(false)
+  order         Int      @default(1)
+  group         String   @default("default")
+
+  @@map("lender")
+}
+
+model LenderProposal {
+  id          Int      @id @default(autoincrement())
+  url         String
+  loanAmount  Int
+  systemPrice Int
+  systemSize  Int
+  rate        Int
+  months      Int
+  years       Int
+  isCash      Boolean  @default(false)
+  cashAmount  Int
+  ppwGross    Float
+  ppwNet      Float
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  selectDate  DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("lender_proposal")
+}
+
+
+model OrderStatus {
+  id        Int     @id @default(autoincrement())
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+  name      String
+  
+  @@map("order_status")
+}
+model OrderType {
+  id        Int     @id @default(autoincrement())
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+  name      String
+  code      String
+  orders    Order[]           //Added as recommended
+  @@map("order_type")
+}
+model Order {
+  id              Int         @id @default(autoincrement())
+  fillDate        DateTime?   // Nullable because it is not specified as required
+  chargeId        String?
+  stripeInvoiceId String?
+  amount          String?
+  quantity        Int?
+  note            String?
+  statusId        Int
+  status          OrderStatus @relation(fields: [statusId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("order")
+}
+////// This is equivalent for the hook beforeCreate 
+// const { PrismaClient } = require('@prisma/client');
+
+// const prisma = new PrismaClient();
+
+// prisma.$use(async (params, next) => {
+//     if (params.model === 'Order' && params.action === 'create') {
+//         if (!params.args.data.statusId) {
+//             const defaultStatus = await prisma.orderStatus.findFirst({
+//                 where: { isDefault: true }
+//             });
+//             params.args.data.statusId = defaultStatus.id;
+//         }
+//     }
+//     return next(params);
+// });
+
+// // Use prisma to make further database calls.
+
+
+model Partner {
+  id                 Int             @id @default(autoincrement())
+  email              String
+  name               String?
+  description        String?
+  websiteUrl         String?
+  primaryPhone       String?
+  secondaryPhone     String?
+  logoUrl            String?
+  loginUrl           String?
+  isPreferred        Boolean         @default(false)
+  isActive           Boolean         @default(true)
+  order              Int             @default(1)
+  redline            Float?
+  virtServiceAreaStates String[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  
+  sectors            PartnerSector[]
+
+  @@map("partner")
+}
+model PartnerType {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String?
+  description String?
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  order       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("partner_type")
+}
+// HOOK EQUIVALENT
+// function generateSlug(name) {
+//   if (name) {
+//     return name.toLowerCase().replace(/ /g, "-");
+//   }
+//   return null;
+// }
+
+// async function createPartnerType(data) {
+//   if (!data.slug && data.name) {
+//     data.slug = generateSlug(data.name);
+//   } else if (data.slug) {
+//     data.slug = generateSlug(data.slug);
+//   }
+
+//   return await prisma.partnerType.create({
+//     data: data
+//   });
+// }
+
+model PartnerSector {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String?
+  description String?
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  order       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("partner_sector")
+}
+// function generateSlug(name) {
+//   if (name) {
+//     return name.toLowerCase().replace(/ /g, "-");
+//   }
+//   return null;
+// }
+
+// async function createPartnerSector(data) {
+//   if (!data.slug && data.name) {
+//     data.slug = generateSlug(data.name);
+//   } else if (data.slug) {
+//     data.slug = generateSlug(data.slug);
+//   }
+
+//   return await prisma.partnerSector.create({
+//     data: data
+//   });
+// }
+
+model PoolType {
+  id          Int     @id @default(autoincrement())
+  isActive    Boolean @default(true)
+  name        String  @unique
+  description String?
+  isDefault   Boolean @default(false)
+  order       Int     @default(1)
+
+  @@map("pool_type")
+}
+
+model Pool {
+  id          Int     @id @default(autoincrement())
+  isActive    Boolean @default(true)
+  name        String  @unique
+  description String?
+  isDefault   Boolean @default(false)
+  order       Int     @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pool")
+}
+
+
+model ProjectAttachmentType {
+  id       Int     @id @default(autoincrement())
+  name     String
+  isActive Boolean @default(true)
+
+  @@map("project_attachment_type")
+}
+model ProjectAttachment {
+  id           Int     @id @default(autoincrement())
+  name         String
+  originalName String
+  key          String
+  location     String
+  description  String?
+  isActive     Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+model ProjectBoard {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  isPrimary   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+model ProjectComment {
+  id       Int      @id @default(autoincrement())
+  contents String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model ProjectLabel {
+  id       Int     @id @default(autoincrement())
+  name     String
+  color    String
+  isActive Boolean @default(true)
+}
+model ProjectLane {
+  id       Int     @id @default(autoincrement())
+  name     String
+  order    Int
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

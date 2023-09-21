@@ -1,4 +1,4 @@
-const prisma = require('../../../prisma/client');
+const prisma = require('../../lib/prisma');
 const B2 = require('backblaze-b2');
 
 const b2 = new B2({

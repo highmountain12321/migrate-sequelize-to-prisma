@@ -1,3 +1,5 @@
+const prisma = require('../../lib/prisma');
+
 exports.createComment = async function(req, res, next) {
     try {
         const { user, role } = req.token;

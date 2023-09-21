@@ -1,6 +1,7 @@
 process.env.BACKBLAZE_BUCKET_ID = '3281e2f2e649281c7bdd0f1a';
 const B2 = require('backblaze-b2');
-const prisma = require('@prisma/client'); // Make sure to import Prisma client
+const prisma = require('../lib/prisma');
+
 
 const b2 = new B2({
     applicationKeyId: '0022122698cbdfa0000000001',

@@ -1,3 +1,4 @@
+const prisma = require('../../lib/prisma');
 exports.create = async function(req, res, next) {
     try {
         if (req.body.id) {

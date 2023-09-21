@@ -1,0 +1,2079 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Activity {
+  id         Int      @id @default(autoincrement())
+  name       String?
+  createdAt  DateTime @default(now())
+  userId     Int?
+  contactId  Int?
+  typeId     Int?
+  User       User?    @relation(fields: [userId], references: [id])
+  Contact    Contact? @relation(fields: [contactId], references: [id])
+  Type       ActivityType? @relation(fields: [typeId], references: [id])
+  @@index([userId], name: "userId")
+  @@index([contactId], name: "contactId")
+  @@index([typeId], name: "typeId")
+}
+
+// model User {
+//   id       Int      @id @default(autoincrement())
+//   // Add other user fields as needed
+//   activities Activity[]
+// }
+
+// model Contact {
+//   id       Int      @id @default(autoincrement())
+//   // Add other contact fields as needed
+//   activities Activity[]
+// }
+
+// model ActivityType {
+//   id       Int      @id @default(autoincrement())
+//   // Add other activity type fields as needed
+//   activities Activity[]
+// }
+
+// ... (previous Prisma schema content)
+
+model ActivityType {
+  id          Int      @id @default(autoincrement())
+  slug        String?
+  name        String?
+  description String?
+  activities  Activity[] // Define the reverse relation to the Activity model
+}
+
+model Adder {
+  id          Int      @id @default(autoincrement())
+  name        String?
+  value       String?
+  quantity    Int?
+  isActive    Boolean?
+  description String?
+  group       String?
+  createdAt   DateTime @default(now())
+  contactId   Int?
+  userId      Int?
+  test        Boolean?
+  Contact     Contact? @relation(fields: [contactId], references: [id])
+  User        User?    @relation(fields: [userId], references: [id])
+  @@index([contactId], name: "contactId")
+  @@index([userId], name: "userId")
+}
+
+model ApiKey {
+  id             Int      @id @default(autoincrement())
+  token          String?
+  count          Int?
+  limit          Int?
+  isActive       Boolean @default(true)
+  createdAt      DateTime @default(now())
+  userId         Int?     @unique
+  userGroupId    Int?
+  apiKey         String?
+  requestDate    DateTime?
+  name           String?
+  description    String?
+  organizationId Int     @default(1)
+  sourceId       Int?
+  User           User?        @relation(fields: [userId], references: [id])
+  UserGroup      UserGroup?   @relation(fields: [userGroupId], references: [id])
+  Organization   Organization? @relation(fields: [organizationId], references: [id])
+  Source         ContactSource? @relation(fields: [sourceId], references: [id])
+  @@index([userId], name: "userId")
+  @@index([userGroupId], name: "user_group")
+  @@index([organizationId], name: "organization_fk")
+  @@index([sourceId], name: "source_fk")
+}
+
+model AppEmail {
+  id        Int      @id @default(autoincrement())
+  email     String?
+  provider  String?
+  providerId String?
+  isActive  Boolean?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    Int?
+  User      User? @relation(fields: [userId], references: [id])
+  @@index([userId], name: "userId")
+}
+
+model AppEventCategory {
+  id          Int      @id @default(autoincrement())
+  name        String?
+  description String?
+  slug        String?
+  isActive    Boolean?
+}
+
+// ... (previous Prisma schema content)
+
+model AppEventLevel {
+  id       Int      @id @default(autoincrement())
+  isActive Boolean?
+  isDefault Boolean?
+  name     String?
+  slug     String?
+  events   AppEvent[] // Define the reverse relation to the AppEvent model
+}
+
+model AppEventType {
+  id          Int      @id @default(autoincrement())
+  name        String?
+  description String?
+  slug        String?
+  isActive    Boolean?
+  categoryId  Int?
+  category    AppEventCategory? @relation(fields: [categoryId], references: [id])
+}
+
+model AppEvent {
+  id            Int      @id @default(autoincrement())
+  isDismissed   Boolean?
+  comment       String?
+  createdAt     DateTime @default(now())
+  levelId       Int?
+  typeId        Int?
+  contactId     Int?
+  userId        Int?
+  closingFormId Int?
+  contact       Contact? @relation(fields: [contactId], references: [id])
+  user          User?    @relation(fields: [userId], references: [id])
+  closingForm   ClosingForm? @relation(fields: [closingFormId], references: [id])
+  level         AppEventLevel? @relation(fields: [levelId], references: [id])
+  type          AppEventType? @relation(fields: [typeId], references: [id])
+  @@index([contactId], name: "contactId")
+  @@index([userId], name: "userId")
+  @@index([closingFormId], name: "closingFormId")
+}
+
+model AppPhone {
+  id             Int      @id @default(autoincrement())
+  phone          String?
+  provider       String?
+  providerPhoneId String?
+  isActive       Boolean?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  userId         Int?
+  user           User? @relation(fields: [userId], references: [id])
+  @@index([userId], name: "userId")
+}
+
+model AppointmentType {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String
+  description String?
+  isDefault   Boolean?
+  isActive    Boolean?
+  order       Int?
+  add         Int?
+  color       Int?
+  group       String?
+}
+
+// ... (previous Prisma schema content)
+
+model Appointment {
+  id            Int      @id @default(autoincrement())
+  fromDate      DateTime?
+  toDate        DateTime?
+  metadata      Json?
+  cancelledAt   DateTime?
+  isActive      Boolean @default(true)
+  group         String?
+  createdAt     DateTime @default(now())
+  contactId     Int?
+  userId        Int?
+  typeId        Int?
+  tzOffset      Int?
+  timezone      Json?
+  timezoneOffset String?
+  endDate       String?
+  startDate     String?
+  test          Boolean?
+  utcStartDateTime DateTime?
+  contact       Contact?       @relation(fields: [contactId], references: [id])
+  user          User?          @relation(fields: [userId], references: [id])
+  type          AppointmentType? @relation(fields: [typeId], references: [id])
+  @@index([contactId], name: "contactId")
+  @@index([userId], name: "userId")
+  @@index([typeId], name: "typeId")
+}
+
+model AutoActionType {
+  id       Int      @id @default(autoincrement())
+  name     String?
+  isActive Boolean?
+}
+
+model AutoAction {
+  id          Int      @id @default(autoincrement())
+  name        String?
+  description String?
+  isActive    Boolean?
+  typeId      Int?
+  fn          String?
+  type        AutoActionType? @relation(fields: [typeId], references: [id])
+}
+
+model AutoAutomationLog {
+  id               Int      @id @default(autoincrement())
+  log              String?
+  isError          Boolean?
+  createdAt        DateTime @default(now())
+  autoAutomationId Int?
+  autoAutomation   AutoAutomation? @relation(fields: [autoAutomationId], references: [id])
+  @@index([autoAutomationId], name: "autoAutomationId")
+}
+
+model AutoAutomation {
+  id             Int      @id @default(autoincrement())
+  name           String?
+  isPrivate      Boolean?
+  isActive       Boolean @default(true)
+  lastRunDate    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  userId         Int?
+  targetUserId   Int?
+  targetGroupId  Int?
+  creatorId      Int?
+  phoneId        Int?
+  emailId        Int?
+  actionId       Int?
+  triggerId      Int?
+  contactSourceId Int?
+  twilioFlowId   String?
+  phoneNumber    String?
+  targetUrl      String?
+  user           User?            @relation(fields: [userId], references: [id])
+  contactSource  ContactSource?   @relation(fields: [contactSourceId], references: [id])
+}
+
+model AutoEventTriggerAutoAction {
+  autoEventTriggerId Int
+  autoActionId       Int
+  @@id([autoEventTriggerId, autoActionId])
+  autoEventTrigger   AutoEventTrigger @relation(fields: [autoEventTriggerId], references: [id])
+  autoAction         AutoAction       @relation(fields: [autoActionId], references: [id])
+}
+
+// ... (previous Prisma schema content)
+
+// ... (previous Prisma schema content)
+
+model AutoEventTriggerType {
+  id       Int      @id @default(autoincrement())
+  name     String?
+  isActive Boolean?
+}
+
+model AutoEventTrigger {
+  id          Int      @id @default(autoincrement())
+  name        String?
+  description String?
+  isActive    Boolean?
+  typeId      Int?
+  type        AutoEventTriggerType? @relation(fields: [typeId], references: [id])
+}
+
+model Calendar {
+  id         Int      @id @default(autoincrement())
+  name       String?
+  calendarId Int?
+  isActive   Boolean?
+  createdAt  DateTime @default(now())
+  userId     Int?
+  user       User?    @relation(fields: [userId], references: [id])
+  @@index([userId], name: "userId")
+}
+
+model CanvasAreaCoord {
+  id                Int      @id @default(autoincrement())
+  lat               Float    @db.Double
+  lng               Float    @db.Double
+  canvasUserAreaId  Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  canvasUserArea    CanvasUserArea? @relation(fields: [canvasUserAreaId], references: [id])
+  @@index([canvasUserAreaId], name: "canvas_user_area_id")
+}
+
+model CanvasArea {
+  id         Int      @id @default(autoincrement())
+  areas      String?
+  isActive   Boolean @default(true)
+  group      String?
+  isDefault  Boolean @default(false)
+  order      Int     @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model CanvasMarker {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String?
+  markerUrl   String
+  isActive    Boolean @default(true)
+  group       String?
+  isDefault   Boolean @default(false)
+  order       Int     @default(1)
+  @@unique([name], name: "unique__name")
+  @@unique([markerUrl], name: "unique__marker_url")
+  @@unique([slug], name: "unique__slug")
+}
+
+model CanvasUserArea {
+  id      Int      @id @default(autoincrement())
+  userId  Int?
+  coords  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user    User?    @relation(fields: [userId], references: [id])
+  @@index([userId], name: "userId")
+}
+
+// ... (previous Prisma schema content)
+
+// ... (previous Prisma schema content)
+
+model ClosingFormStatus {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  isActive  Boolean?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isDefault Boolean?
+  slug      String?
+}
+
+model ClosingFormUpdateType {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String
+  description String?
+  isDefault   Boolean?
+  isActive    Boolean?
+  order       Int?
+  group       String?
+  section     String?
+  isVisible   Boolean?
+}
+
+model ClosingFormUpdate {
+  id            Int      @id @default(autoincrement())
+  note          String?
+  tags          Json?
+  group         String?
+  createdAt     DateTime @default(now())
+  closingFormId Int?
+  userId        Int?
+  typeId        Int?
+  closingForm   ClosingForm?      @relation(fields: [closingFormId], references: [id])
+  user          User?             @relation(fields: [userId], references: [id])
+  type          ClosingFormUpdateType? @relation(fields: [typeId], references: [id])
+}
+
+model ClosingForm {
+  id             Int       @id @default(autoincrement())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  contactId      Int?
+  submittedById  Int?
+  isApproved     Boolean?
+  dateApproved   DateTime?
+  updateId       Int?
+  resubmitDate   DateTime?
+  isActive       Boolean   @default(true)
+  partnerId      Int?
+  statusId       Int?
+  organizationId Int?
+  taxReviewAddon Boolean?
+  contact        Contact?    @relation(fields: [contactId], references: [id])
+  submittedBy    User?       @relation(fields: [submittedById], references: [id])
+  status         ClosingFormStatus? @relation(fields: [statusId], references: [id])
+  update         ClosingFormUpdate? @relation(fields: [updateId], references: [id])
+  partner        Partner?   @relation(fields: [partnerId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+}
+
+model ClosingformCommentType {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isActive  Boolean?
+  isDefault Boolean?
+}
+
+// ... (previous Prisma schema content)
+
+// ... (previous Prisma schema content)
+
+model ClosingformComment {
+  id            Int      @id @default(autoincrement())
+  comment       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  closingFormId Int?
+  userId        Int?
+  typeId        Int?
+  isActive      Boolean?
+  user          User?               @relation(fields: [userId], references: [id])
+  type          ClosingformCommentType? @relation(fields: [typeId], references: [id])
+  closingForm   ClosingForm?        @relation(fields: [closingFormId], references: [id])
+}
+
+model CommercialPocPosition {
+  id       Int      @id @default(autoincrement())
+  name     String?
+  isDefault Boolean?
+  isActive Boolean?
+  order    Int?
+}
+
+model CommercialPoc {
+  id             Int      @id @default(autoincrement())
+  firstName      String?
+  lastName       String?
+  primaryPhone   String?
+  primaryEmail   String?
+  test           Boolean?
+  metadata       Json?
+  isActive       Boolean   @default(true)
+  group          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  contactId      Int?
+  positionId     Int?
+  contact        Contact?   @relation(fields: [contactId], references: [id])
+  position       CommercialPocPosition? @relation(fields: [positionId], references: [id])
+}
+
+model CompanyContactTemp {
+  id               Int      @id @default(autoincrement())
+  companyName      String?
+  pocFirstName     String?
+  pocRole          String?
+  pocLastName      String?
+  pocEmail         String?
+  companyWebsite   String?
+  pocPrimaryPhone  String?
+  companyAddress1  String?
+  companyAddress2  String?
+  companyCity      String?
+  companyState     String?
+  companyPostalCode String?
+  solar            Boolean?
+  turbine          Boolean?
+  isActive         Boolean   @default(true)
+  group            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model CompanyPocTemp {
+  id               Int      @id @default(autoincrement())
+  companyName      String?
+  pocFirstName     String?
+  pocRole          String?
+  pocLastName      String?
+  pocEmail         String?
+  pocPrimaryPhone  String?
+  companyAddress1  String?
+  companyAddress2  String?
+  companyCity      String?
+  companyState     String?
+  companyPostalCode String?
+  solar            Boolean?
+  turbine          Boolean?
+  isActive         Boolean   @default(true)
+  group            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  userId           Int?
+  companyWebsite   String?
+  user             User? @relation(fields: [userId], references: [id])
+}
+
+model ContactActionType {
+  id       Int      @id @default(autoincrement())
+  name     String
+  isDefault Boolean
+  isActive Boolean
+  createdAt DateTime @default(now())
+}
+model ContactAction {
+  id        Int       @id @default(autoincrement())
+  createdAt DateTime  @default(now()) @db.DateTime
+  contactId Int?
+  typeId    Int?
+  contact   Contact?  @relation(fields: [contactId], references: [id])
+  type      ContactActionType? @relation(fields: [typeId], references: [id])
+}
+
+model ContactAppointment {
+  createdAt    DateTime @default(now()) @db.DateTime
+  updatedAt    DateTime @updatedAt @db.DateTime
+  contactId    Int
+  appointmentId Int
+  contact      Contact @relation(fields: [contactId], references: [id])
+  appointment  Appointment @relation(fields: [appointmentId], references: [id])
+  @@id([contactId, appointmentId])
+}
+
+model ContactAutomationRun {
+  id           Int       @id @default(autoincrement())
+  createdAt    DateTime  @default(now()) @db.DateTime
+  contactId    Int
+  automationId Int
+  contact      Contact   @relation(fields: [contactId], references: [id])
+}
+
+model ContactCommentType {
+  id        Int      @id @default(autoincrement())
+  type      String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.DateTime
+  updatedAt DateTime @updatedAt @db.DateTime
+}
+
+model ContactComment {
+  id        Int       @id @default(autoincrement())
+  comment   String?   @db.VarChar(255)
+  createdAt DateTime  @default(now()) @db.DateTime
+  updatedAt DateTime  @updatedAt @db.DateTime
+  contactId Int?
+  userId    Int?
+  user      User?     @relation(fields: [userId], references: [id])
+}
+
+model ContactEventType {
+  id          Int     @id @default(autoincrement())
+  name        String? @db.VarChar(255)
+  description String? @db.VarChar(255)
+  isActive    Boolean? 
+  isActionable Boolean? 
+}
+
+// ... (previous Prisma schema content)
+
+// ... (previous Prisma schema content)
+
+model ContactEvent {
+  id           Int       @id @default(autoincrement())
+  system       Boolean?  
+  processDate  DateTime? @db.DateTime
+  test         Boolean?  
+  createdAt    DateTime  @default(now()) @db.DateTime
+  typeId       Int?
+  contactId    Int?
+  userId       Int?
+  type         ContactEventType? @relation(fields: [typeId], references: [id])
+  contact      Contact?         @relation(fields: [contactId], references: [id])
+  user         User?            @relation(fields: [userId], references: [id])
+}
+
+model ContactSource {
+  id          Int      @id @default(autoincrement())
+  slug        String   @db.VarChar(255)
+  name        String?  @db.VarChar(255)
+  description String?  @db.VarChar(255)
+  isDefault   Boolean? 
+  isActive    Boolean  @default(true)
+  order       Int?     
+  group       String?  @db.VarChar(255)
+}
+
+model ContactStage {
+  id          Int      @id @default(autoincrement())
+  slug        String   @db.VarChar(255)
+  name        String?  @db.VarChar(255)
+  description String?  @db.VarChar(255)
+  isDefault   Boolean? 
+  isActive    Boolean? 
+  order       Int?     
+  color       String?  @db.VarChar(11)
+  @@unique([slug])
+}
+
+model ContactStatus {
+  id        Int     @id @default(autoincrement())
+  naem      Float?  // Typo in the table definition, not sure what it represents
+  markerUrl Float?  // Typo in the table definition, not sure what it represents
+}
+
+model ContactSystem {
+  id        Int      @id @default(autoincrement())
+  size      Int?     
+  createdAt DateTime @default(now()) @db.DateTime
+  updatedAt DateTime @updatedAt @db.DateTime
+  contactId Int?     
+  contact   Contact? @relation(fields: [contactId], references: [id])
+}
+
+model ContactType {
+  id          Int      @id @default(autoincrement())
+  slug        String   @db.VarChar(255)
+  name        String?  @db.VarChar(255)
+  description String?  @db.VarChar(255)
+  isDefault   Boolean? 
+  isActive    Boolean   @default(true)
+  order       Int?     
+  group       String?  @db.VarChar(255)
+  color       String?  @db.VarChar(11)
+  @@unique([slug])
+}
+
+// ... (previous Prisma schema content)
+
+// ... (previous Prisma schema content)
+
+model ContactUpdate {
+  id             Int       @id @default(autoincrement())
+  note           String?   @db.Text
+  tags           Json?     @db.Json
+  group          String?   @db.VarChar(255)
+  createdAt      DateTime  @default(now()) @db.DateTime
+  toId           Int?      
+  appointmentId  Int?      
+  contactId      Int?      
+  userId         Int?      
+  test           Int?      
+  contact        Contact?  @relation(fields: [contactId], references: [id])
+  appointment    Appointment? @relation(fields: [appointmentId], references: [id])
+  user           User?     @relation(fields: [userId], references: [id])
+  to             Option?   @relation(fields: [toId], references: [id])
+}
+
+model Contact {
+  id                  Int        @id @default(autoincrement())
+  firstName           String?    @db.VarChar(255)
+  lastName            String?    @db.VarChar(255)
+  address1            String?    @db.VarChar(255)
+  address2            String?    @db.VarChar(255)
+  city                String?    @db.VarChar(255)
+  state               String?    @db.VarChar(255)
+  postalCode          String?    @db.VarChar(255)
+  interests           String?    @db.LongText
+  isSpanishSpeaker    Boolean     @default(false)
+  primaryPhone        String?    @db.VarChar(255)
+  secondaryPhone      String?    @db.VarChar(255)
+  email               String?    @db.VarChar(255)
+  avgMonthlyBill      String?    @db.Text
+  exactMonthlyKW      Json?      @db.Json
+  closeDate           DateTime?  @db.DateTime
+  leadDate            DateTime?  @db.DateTime
+  assignDate          DateTime?  @db.DateTime
+  opportunityDate     DateTime?  @db.DateTime
+  sitDate             DateTime?  @db.DateTime
+  dropDate            DateTime?  @db.DateTime
+  isActive            Boolean     @default(false)
+  organizationId      Int?       
+  createdAt           DateTime   @default(now()) @db.DateTime
+  updatedAt           DateTime   @updatedAt @db.DateTime
+  partnerProposalId   Int?       
+  lenderProposalId    Int?       
+  assignedById        Int?       
+  sourceId            Int?       
+  typeId              Int?       
+  genTypeId           Int?       
+  hoaId               Int?       
+  utilityProvider     String?    @db.Text
+  roofTypeId          Int?       
+  test                Int?       
+  busName             String?    @db.VarChar(200)
+  busWebsite          String?    @db.Text
+  tzOffset            String?    @db.VarChar(20)
+  updateId            Int?       
+  stageId             Int         @default(1)
+  projectId           Int?       
+  propertyTypeId      Int?       
+  meta                Json?      @db.Json
+  sourceNotes         String?    @db.Text
+  activities           Activity[]
+  adder                 Adder
+  stage               ContactStage? @relation(fields: [stageId], references: [id])
+  organization        Organization? @relation(fields: [organizationId], references: [id])
+  partnerProposal     PartnerProposal? @relation(fields: [partnerProposalId], references: [id])
+  lenderProposal      LenderProposal? @relation(fields: [lenderProposalId], references: [id])
+  assignedBy          User?     @relation(fields: [assignedById], references: [id])
+  source              ContactSource? @relation(fields: [sourceId], references: [id])
+  type                ContactType? @relation(fields: [typeId], references: [id])
+  genType             GenType?  @relation(fields: [genTypeId], references: [id])
+  hoa                 Hoa?      @relation(fields: [hoaId], references: [id])
+  roofType            RoofType? @relation(fields: [roofTypeId], references: [id])
+  update              ContactUpdate? @relation(fields: [updateId], references: [id])
+  project             Project?  @relation(fields: [projectId], references: [id])
+  propertyType        PropertyType? @relation(fields: [propertyTypeId], references: [id])
+}
+
+// ... (previous Prisma schema content)
+
+model ContactsCopy {
+  id                  Int        @id @default(autoincrement())
+  firstName           String?    @db.VarChar(255)
+  lastName            String?    @db.VarChar(255)
+  address1            String?    @db.VarChar(255)
+  address2            String?    @db.VarChar(255)
+  city                String?    @db.VarChar(255)
+  state               String?    @db.VarChar(255)
+  postalCode          String?    @db.VarChar(255)
+  interests           String?    @db.LongText
+  isSpanishSpeaker    Boolean     @default(false)
+  primaryPhone        String?    @db.VarChar(255)
+  secondaryPhone      String?    @db.VarChar(255)
+  email               String?    @db.VarChar(255)
+  avgMonthlyBill      String?    @db.Text
+  exactMonthlyKW      Json?      @db.Json
+  closeDate           DateTime?  @db.DateTime
+  leadDate            DateTime?  @db.DateTime
+  assignDate          DateTime?  @db.DateTime
+  opportunityDate     DateTime?  @db.DateTime
+  sitDate             DateTime?  @db.DateTime
+  dropDate            DateTime?  @db.DateTime
+  isActive            Boolean     @default(false)
+  organizationId      Int?       
+  createdAt           DateTime   @default(now()) @db.DateTime
+  updatedAt           DateTime   @updatedAt @db.DateTime
+  partnerProposalId   Int?       
+  lenderProposalId    Int?       
+  assignedById        Int?       
+  sourceId            Int?       
+  typeId              Int?       
+  genTypeId           Int?       
+  hoaId               Int?       
+  utilityProvider     String?    @db.Text
+  roofTypeId          Int?       
+  test                Int?       
+  busName             String?    @db.VarChar(200)
+  busWebsite          String?    @db.Text
+  tzOffset            String?    @db.VarChar(20)
+  updateId            Int?       
+  stageId             Int         @default(1)
+  projectId           Int?       
+  propertyTypeId      Int?       
+  meta                Json?      @db.Json
+  stage               ContactStage? @relation(fields: [stageId], references: [id])
+  organization        Organization? @relation(fields: [organizationId], references: [id])
+  partnerProposal     PartnerProposal? @relation(fields: [partnerProposalId], references: [id])
+  lenderProposal      LenderProposal? @relation(fields: [lenderProposalId], references: [id])
+  assignedBy          User?     @relation(fields: [assignedById], references: [id])
+  source              ContactSource? @relation(fields: [sourceId], references: [id])
+  type                ContactType? @relation(fields: [typeId], references: [id])
+  genType             GenType?  @relation(fields: [genTypeId], references: [id])
+  hoa                 Hoa?      @relation(fields: [hoaId], references: [id])
+  roofType            RoofType? @relation(fields: [roofTypeId], references: [id])
+  update              ContactUpdate? @relation(fields: [updateId], references: [id])
+  project             Project?  @relation(fields: [projectId], references: [id])
+  propertyType        PropertyType? @relation(fields: [propertyTypeId], references: [id])
+}
+
+// Design Requests
+model DesignRequest {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Define your other fields here
+}
+
+// Document Types
+model DocumentType {
+  id           Int      @id @default(autoincrement())
+  slug         String   @unique
+  name         String
+  description  String?
+  isDefault    Boolean?
+  isActive     Boolean?
+  order        Int?
+  group        String?
+  section      String?
+  isCommercial Boolean?
+  isResidential Boolean?
+  // Define your other fields here
+}
+
+// Documents
+model Document {
+  id            Int      @id @default(autoincrement())
+  originalName  String?
+  key           String?
+  tags          Json?
+  metadata      Json?
+  versionId     String
+  location      String
+  isActive      Boolean @default(true)
+  order         Int     @default(1)
+  createdAt     DateTime @default(now())
+  contactId     Int?
+  typeId        Int?
+  userId        Int?
+  partnerId     Int?
+  externalUpload Boolean?
+  test          Int?
+  
+  // Relationships
+  contact       Contact?       @relation(fields: [contactId], references: [id])
+  type          DocumentType?  @relation(fields: [typeId], references: [id])
+  user          User?          @relation(fields: [userId], references: [id])
+  partner       Partner?       @relation(fields: [partnerId], references: [id])
+  // Define your other fields here
+}
+
+// Residential Batteries
+model ResidentialBattery {
+  id                   Int     @id @default(autoincrement())
+  partNumber           String?
+  specSheet            String?
+  usableEnergy         String?
+  chargePower          String?
+  dischargePower       String?
+  peakDischargePower   String?
+  peakDischargeDuration String?
+  productImagePath     String?
+  manufacturerId       Int?
+  
+  // Define your other fields here
+}
+
+// Equipment Residential Battery Partner
+model EquipmentResidentialBatteryPartner {
+  battery_id Int
+  partner_id Int
+
+  @@id([battery_id, partner_id])
+  
+  // Relationships
+  battery  ResidentialBattery @relation(fields: [battery_id], references: [id])
+  partner  Partner           @relation(fields: [partner_id], references: [id])
+}
+
+// Equipment Residential Inverter Partner
+model EquipmentResidentialInverterPartner {
+  module_id Int
+  partner_id Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@id([module_id, partner_id])
+
+  // Relationships
+  module  EquipmentResidentialInverter @relation(fields: [module_id], references: [id])
+  partner Partner                    @relation(fields: [partner_id], references: [id])
+}
+
+// Equipment Residential Inverters
+model EquipmentResidentialInverter {
+  id                      Int      @id @default(autoincrement())
+  display_name            String?
+  model                   String?
+  type                    String?
+  efficiency              String?
+  spec_sheet              String?
+  man_part_num            String?
+  ced_part_num            String?
+  soligent_part_num       String?
+  jexpro_num              String?
+  rated_ac                Int?
+  max_ac                  Int?
+  max_dc_input            String?
+  max_connected_panels    Int?
+  number_of_mppt          Int?
+  inputs_per_mppt         String?
+  max_input_voltage       Int?
+  max_input_current       Int?
+  max_output_current_v    String?
+  min_breaker_rating      String?
+  cec_weighted_eff_percent String?
+  nominal_input_voltage   String?
+  nominal_dc_input_voltage String?
+  optimizer_max_output_current String?
+  max_string_wattage_size String?
+  under_module_writing    String?
+  optimizers              String?
+  rated_dc_input_current  String?
+  max_string_size         String?
+  min_string_size         String?
+  max_output_current      Int?
+  created                 String?
+  modified                String?
+  expired                 String?
+  part_number             String?
+  max_input_power         Int?
+  nominal_input_current   Int?
+  max_input_string_size   String?
+  max_input_string_quantity String?
+  max_input_string_power  String?
+  max_output_voltage      Int?
+  max_output_wattage      Int?
+  min_output              String?
+  battery_ready_inverter String?
+  cad_type                String?
+  min_modules_per_string  Int?
+  min_mpp_voltage         Int?
+  max_voltage_drop        Float?
+  combo                   String?
+  auto_select             String?
+  use_png_spec            String?
+  includes_ev_charger     String?
+  manufacturername        String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt @default(now())
+  manufacturer_id         Int?
+
+  // Relationships
+  manufacturer Manufacturer?             @relation(fields: [manufacturer_id], references: [id])
+  partners     EquipmentResidentialInverterPartner[]
+}
+
+// Equipment Residential Module Partner
+model EquipmentResidentialModulePartner {
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt @default(now())
+  module_id  Int
+  partner_id Int
+
+  @@id([module_id, partner_id])
+
+  // Relationships
+  module  EquipmentResidentialModule @relation(fields: [module_id], references: [id])
+  partner Partner                   @relation(fields: [partner_id], references: [id])
+}
+
+// Equipment Residential Modules
+model EquipmentResidentialModule {
+  id                  Int       @id @default(autoincrement())
+  length              Float?
+  width               Float?
+  name                String?
+  display_name        String?
+  wattage             Float?
+  degradation         Float?
+  spec_sheet          String?
+  part_number         String?
+  ced_part_number     String?
+  cad_part_number     String?
+  max_power_voltage   Float?
+  max_power_current   Float?
+  open_circuit_voltage Float?
+  short_circuit_current Float?
+  ac_module           String?
+  dwg_file            String?
+  created             String?
+  modified            String?
+  expired             String?
+  cell_quantity       Int?
+  max_fuse_rating     Int?
+  thickness           Float?
+  backsheet_color     String?
+  frame_color         String?
+  cad_ready           String?
+  weight              Float?
+  spec_images         Json?
+  manufacturer_id     Int?
+  use_png_spec        String?
+  manufacturer        Manufacturer? @relation(fields: [manufacturer_id], references: [id])
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt @default(now())
+  type                Int?
+}
+
+// Gen Types
+model GenType {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String?
+  isActive    Boolean  @default(true)
+  isDefault   Boolean?
+  description String?
+  order       Int?
+  group       String?
+}
+
+// Hoas
+model Hoa {
+  id           Int      @id @default(autoincrement())
+  websiteUrl   String?
+  name         String?
+  primaryPhone String?
+  secondaryPhone String?
+  fax          String?
+  email        String?
+  address1     String?
+  address2     String?
+  city         String?
+  state        String?
+  postalCode   String?
+  isActive     Boolean  @default(true)
+  metadata     Json?
+  order        Int      @default(1)
+  group        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt @default(now())
+}
+
+// Incentive Types
+model IncentiveType {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String?
+  isActive    Boolean  @default(true)
+  isDefault   Boolean?
+  description String?
+  order       Int?
+  group       String?
+}
+
+// Incentives
+model Incentive {
+  id          Int      @id @default(autoincrement())
+  name        String?
+  isActive    Boolean?
+  description String?
+  order       Int?
+  group       String?
+  createdAt   DateTime @default(now())
+  contactId   Int?
+  userId      Int?
+  typeId      Int?
+  test        Int?
+  contact     Contact? @relation(fields: [contactId], references: [id])
+  user        User?    @relation(fields: [userId], references: [id])
+  type        IncentiveType? @relation(fields: [typeId], references: [id])
+}
+
+// Integrations
+model Integration {
+  id               Int      @id @default(autoincrement())
+  name             String?
+  providerProfileId String?
+  accessToken      String?
+  profile          Json?
+  meta             Json?
+  isActive         Boolean?
+  createdAt        DateTime @default(now())
+  userId           Int?
+  refreshToken     String?
+  user             User?    @relation(fields: [userId], references: [id])
+}
+
+// Internal Updates
+model InternalUpdate {
+  id            Int      @id @default(autoincrement())
+  note          String?
+  group         String?
+  createdAt     DateTime @default(now())
+  fromId        Int?
+  toId          Int?
+  appointmentId Int?
+  contactId     Int?
+  userId        Int?
+  from          Option?   @relation("FromOption", fields: [fromId], references: [id])
+  to            Option?   @relation("ToOption", fields: [toId], references: [id])
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  contact       Contact? @relation(fields: [contactId], references: [id])
+  user          User?    @relation(fields: [userId], references: [id])
+}
+
+// Lender Partner
+model LenderPartner {
+  lender_id  Int
+  partner_id Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt @default(now())
+  lender     Lender   @relation(fields: [lender_id], references: [id])
+  partner    Partner  @relation(fields: [partner_id], references: [id])
+  @@id([lender_id, partner_id])
+}
+
+// Lender Proposals
+model LenderProposal {
+  id             Int      @id @default(autoincrement())
+  url            String?
+  loanAmount     Int?
+  systemPrice    Int?
+  rate           Int?
+  months         Int?
+  years          Int?
+  isActive       Boolean  @default(true)
+  metadata       Json?
+  group          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt @default(now())
+  contactId      Int?
+  lenderId       Int?
+  submittedById  Int?
+  isCash         Int?
+  cashAmount     Int?
+  ppwGross       Float?
+  ppwNet         Float?
+  systemSize     Float?
+  selectDate     DateTime?
+  submittedBy    User?    @relation("SubmittedBy", fields: [submittedById], references: [id])
+  contact        Contact? @relation(fields: [contactId], references: [id])
+  lender         Lender?  @relation(fields: [lenderId], references: [id])
+}
+
+
+// Lenders
+model Lender {
+  id            Int      @id @default(autoincrement())
+  name          String?
+  websiteUrl    String?
+  primaryPhone  String?
+  secondaryPhone String?
+  fax           String?
+  description   String?
+  email         String?
+  logoUrl       String?
+  metadata      Json?
+  slug          String?
+  isActive      Boolean? @default(true)
+  isDefault     Boolean? @default(false)
+  order         Int?     @default(1)
+  group         String?
+}
+
+// Logins
+model Login {
+  id         Int      @id @default(autoincrement())
+  ip         String?
+  data       Json?
+  createdAt  DateTime @default(now())
+  userId     Int?
+  managerId  Int?
+  city       String?
+  state      String?
+  country    String?
+  user       User?    @relation(fields: [userId], references: [id])
+  manager    User?    @relation(name: "ManagerLogin", fields: [managerId], references: [id])
+}
+
+// Manufacturers
+model Manufacturer {
+  id    Int      @id
+  name  String?
+  type  String?
+}
+
+// Meters
+model Meter {
+  id            Int      @id @default(autoincrement())
+  data          Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt @default(now())
+  contactId     Int?
+  name          String?
+  accountNumber String?
+  meterNumber   String?
+  contact       Contact? @relation(fields: [contactId], references: [id])
+}
+
+// Notes
+model Note {
+  id         Int      @id @default(autoincrement())
+  contents   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt @default(now())
+  contactId  Int?
+  userId     Int?
+  test       Int?
+  contact    Contact? @relation(fields: [contactId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+// Options
+model Option {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  value       String?
+  options     Json?
+  type        String
+  slug        String   @unique
+  group       String?
+  isActive    Boolean  @default(true)
+  isVisible   Boolean? @default(true)
+  isDefault   Boolean? @default(false)
+  order       Int      @default(1)
+  notifications Json?
+}
+
+
+// OrderStatuses
+model OrderStatus {
+  id        Int      @id @default(autoincrement())
+  isActive  Boolean  @default(true)
+  name      String   @default("0")
+  isDefault Int?
+}
+
+// OrderTypes
+model OrderType {
+  id        Int      @id @default(autoincrement())
+  isActive  Boolean  @default(true)
+  name      String   @default("0")
+  isDefault Int?
+  code      String?
+}
+
+// Orders
+model Order {
+  id               Int       @id @default(autoincrement())
+  chargeId         String?   @unique
+  amount           String?
+  quantity         String?
+  note             String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt @default(now())
+  organizationId   Int?
+  userId           Int?
+  statusId         Int?
+  filledById       Int?
+  stripeInvoiceId  String?
+  fillDate         DateTime?
+  typeId           Int?
+  organization     Organization?  @relation(fields: [organizationId], references: [id])
+  user             User?         @relation(fields: [userId], references: [id])
+  status           OrderStatus?  @relation(fields: [statusId], references: [id])
+  filledBy         User?         @relation(name: "FilledByLogin", fields: [filledById], references: [id])
+  type             OrderType?    @relation(fields: [typeId], references: [id])
+}
+
+// Organizations
+model Organization {
+  id           Int       @id @default(autoincrement())
+  name         String    @unique
+  description  String?
+  isActive     Boolean   @default(true)
+  isDefault    Int       @default(0)
+  inActiveDate DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt @default(now())
+  config       Json?
+  redline      Float?
+  boards       ProjectBoard[] ///
+  projects     Project[] ///
+}
+
+// PanelManufacturers
+model PanelManufacturer {
+  id         Int      @id @default(autoincrement())
+  slug       String   @unique
+  imageUrl   String?
+  websiteUrl String?
+  description String   @default("")
+  origin     String?
+  name       String   @unique
+  isActive   Boolean  @default(true)
+  metadata   Json?
+  isDefault  Int?     @default(0)
+  order      Int?     @default(1)
+}
+
+// PartnerPartnerSector
+model PartnerPartnerSector {
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt @default(now())
+  partnerSectorId  Int
+  partnerId        Int
+  partnerSector    PartnerSector @relation(fields: [partnerSectorId], references: [id])
+  partner          Partner      @relation(fields: [partnerId], references: [id])
+  @@id([partnerSectorId, partnerId])
+}
+
+// PartnerPartnerType
+model PartnerPartnerType {
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt @default(now())
+  partnerTypeId   Int
+  partnerId       Int
+  partnerType     PartnerType @relation(fields: [partnerTypeId], references: [id])
+  partner         Partner     @relation(fields: [partnerId], references: [id])
+  @@id([partnerTypeId, partnerId])
+}
+
+// PartnerProposalComments
+model PartnerProposalComment {
+  id               Int      @id @default(autoincrement())
+  comment          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt @default(now())
+  userId           Int?
+  partnerProposalId Int?
+  partnerProposal  PartnerProposal? @relation(fields: [partnerProposalId], references: [id])
+}
+
+// PartnerProposals
+model PartnerProposal {
+  id            Int       @id @default(autoincrement())
+  url           String?
+  isActive      Boolean   @default(true)
+  metadata      Json?
+  group         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt @default(now())
+  contactId     Int?
+  partnerId     Int?
+  submittedById Int?
+  selectDate    DateTime?
+  test          Int?
+  submittedBy   User?     @relation(fields: [submittedById], references: [id])
+}
+
+// PartnerSectors
+model PartnerSector {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String?
+  description String?
+  isDefault   Int?
+  isActive    Int?
+  order       Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt @default(now())
+}
+
+// PartnerTypes
+model PartnerType {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String?
+  description String?
+  isDefault   Int?
+  isActive    Int?
+  order       Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt @default(now())
+}
+
+// Partners
+model Partner {
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique
+  name               String?
+  description        String?
+  websiteUrl         String?
+  primaryPhone       String?
+  secondaryPhone     String?
+  logoUrl            String?
+  redLine            Float?
+  redLineUpdateDate  DateTime?
+  isActive           Boolean   @default(true)
+  group              String    @default("default")
+  order              Int       @default(1)
+  rank               Int       @default(1)
+  metadata           Json?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt @default(now())
+  userId             Int?
+  typeId             Int?
+  loginUrl           String?   @map(name: "loginUrl") // Renamed column
+  isPreferred        Int       @default(0)
+  config             Json?
+  user               User?     @relation(fields: [userId], references: [id])
+  type               PartnerType? @relation(fields: [typeId], references: [id])
+}
+
+// PocRoles
+model PocRole {
+  id         Int      @id @default(autoincrement())
+  name       String?
+  isDefault  Boolean?
+  isActive   Boolean?
+  order      Int?
+}
+
+// Pocs
+model Poc {
+  id            Int       @id @default(autoincrement())
+  firstName     String?
+  lastName      String?
+  primaryPhone  String?
+  primaryEmail  String?
+  test          Int?
+  metadata      Json?
+  isActive      Boolean   @default(true)
+  group         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt @default(now())
+  contactId     Int?
+  roleId        Int?
+  contact       Contact?  @relation(fields: [contactId], references: [id])
+  role          PocRole?  @relation(fields: [roleId], references: [id])
+}
+
+// PoolTypes
+model PoolType {
+  id          Int      @id @default(autoincrement())
+  isActive    Boolean  @default(true)
+  name        String?
+  description String?
+  isDefault   Boolean  @default(false)
+  order       Int      @default(1)
+}
+
+// Pools
+model Pool {
+  id          Int      @id @default(autoincrement())
+  isActive    Boolean  @default(true)
+  name        String?
+  description String?
+  isDefault   Boolean  @default(false)
+  order       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt @default(now())
+}
+
+// ProductBrand
+model ProductBrand {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  imageUrl    String?
+  websiteUrl  String?
+  description String   // NOT NULL
+  name        String   // NOT NULL
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  isDefault   Boolean  @default(false)
+  order       Int      @default(1)
+}
+
+// ProductManufacturer
+model ProductManufacturer {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  imageUrl    String?
+  websiteUrl  String?
+  description String   // NOT NULL
+  origin      String?
+  name        String   // NOT NULL
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  isDefault   Boolean  @default(false)
+  order       Int      @default(1)
+}
+
+// ProductPanelType
+model ProductPanelType {
+  id       Int      @id @default(autoincrement())
+  name     String?  @unique
+  isActive Int      @default(1)
+}
+
+// ProductPanel
+model ProductPanel {
+  id             Int       @id @default(autoincrement())
+  imageUrl       String?
+  productUrl     String?
+  websiteUrl     String?
+  isActive       Boolean   @default(true)
+  metadata       Json?
+  isDefault      Boolean   @default(false)
+  isApproved     Boolean   @default(false)
+  order          Int       @default(1)
+  group          String?
+  nominalPower   String?
+  length         Int?
+  width          Int?
+  model          String?
+  tempCoeff      String?
+  NOCT           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt @default(now())
+  manufacturerId Int?
+  typeId         Int?
+  manufacturer   ProductManufacturer? @relation(fields: [manufacturerId], references: [id])
+  type           ProductPanelType?     @relation(fields: [typeId], references: [id])
+}
+
+// ProductType
+model ProductType {
+  id          Int     @id @default(autoincrement())
+  slug        String  @unique
+  name        String?
+  isActive    Boolean?
+  isDefault   Boolean?
+  description String?
+  order       Int?
+  group       String?
+}
+
+// Product
+model Product {
+  id             Int       @id @default(autoincrement())
+  slug           String    @unique
+  imageUrl       String?
+  productUrl     String?
+  websiteUrl     String?
+  price          Float?
+  description    String    // NOT NULL
+  name           String    // NOT NULL
+  isActive       Boolean   @default(true)
+  metadata       Json?
+  isDefault      Boolean   @default(false)
+  isApproved     Boolean   @default(false)
+  order          Int       @default(1)
+  group          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt @default(now())
+  brandId        Int?
+  manufacturerId Int?
+  typeId         Int?
+  partnerId      Int?
+  brand          ProductBrand?   @relation(fields: [brandId], references: [id])
+  manufacturer   ProductManufacturer? @relation(fields: [manufacturerId], references: [id])
+  type           ProductType? @relation(fields: [typeId], references: [id])
+  partner        Partner? @relation(fields: [partnerId], references: [id])
+}
+
+// ProjectAttachmentType
+model ProjectAttachmentType {
+  id       Int      @id @default(autoincrement())
+  name     String?
+  isActive Boolean  @default(true)
+}
+
+// ProjectAttachment
+model ProjectAttachment {
+  id                  Int       @id @default(autoincrement())
+  name                String?
+  originalName        String?
+  key                 String?
+  location            String?
+  description         String?
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt @default(now())
+  projectId           Int?
+  projectAttachmentId Int?
+  typeId              Int?
+  project             Project?  @relation(fields: [projectId], references: [id])
+  projectAttachment   ProjectAttachment? @relation(fields: [projectAttachmentId], references: [id])
+  type                ProjectAttachmentType? @relation(fields: [typeId], references: [id])
+}
+
+// ProjectBoard
+model ProjectBoard {
+  id            Int       @id @default(autoincrement())
+  name          String?
+  description   String?
+  isActive      Boolean   @default(true)
+  isPrimary     Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt @default(now())
+  organizationId Int?
+  ownerId       Int?
+  userGroupId   Int?
+  organization  Organization? @relation(fields: [organizationId], references: [id])
+  owner         User? @relation(fields: [ownerId], references: [id])
+  userGroup     UserGroup? @relation(fields: [userGroupId], references: [id])
+  board         Project
+}
+
+// ProjectComment
+model ProjectComment {
+  id        Int       @id @default(autoincrement())
+  contents  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt @default(now())
+  projectId Int?
+  repId     Int?
+  project   Project? @relation(fields: [projectId], references: [id])
+  rep       User? @relation(fields: [repId], references: [id])
+}
+
+// ProjectLabel
+model ProjectLabel {
+  id        Int     @id @default(autoincrement())
+  name      String?
+  color     String?
+  isActive  Boolean @default(true)
+  projectId Int?
+  project   Project? @relation(fields: [projectId], references: [id])
+}
+
+// ProjectLane
+model ProjectLane {
+  id            Int      @id @default(autoincrement())
+  name          String?
+  order         Int?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt @default(now())
+  boardId       Int?
+  projectBoardId Int?
+  board         ProjectBoard? @relation(fields: [boardId], references: [id])
+}
+
+// ProjectUser
+model ProjectUser {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+  projectId Int
+  userId    Int
+  project   Project @relation(fields: [projectId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
+  @@id([projectId, userId])
+}
+
+// ProjectUserContributor
+model ProjectUserContributor {
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+  projectId Int
+  userId    Int
+  project   Project @relation(fields: [projectId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
+  @@id([projectId, userId])
+}
+
+// Project
+model Project {
+  id              Int       @id @default(autoincrement())
+  name            String?
+  description     String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt @default(now())
+  organizationId  Int?
+  userGroupId     Int?
+  laneId          Int?
+  boardId         Int?
+  projectLaneId   Int?
+  contactId       Int?
+  ownerId         Int?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  userGroup       UserGroup?  @relation(fields: [userGroupId], references: [id])
+  
+  // Name the relations explicitly to avoid ambiguity
+  lane            ProjectLane? @relation(name: "ProjectToLane", fields: [laneId], references: [id])
+  projectLane     ProjectLane? @relation(name: "ProjectToProjectLane", fields: [projectLaneId], references: [id])
+  
+  board           ProjectBoard? @relation(fields: [boardId], references: [id])
+  contact         Contact? @relation(fields: [contactId], references: [id])
+  owner           User?    @relation(fields: [ownerId], references: [id])
+  labels          ProjectLabel[]
+}
+
+
+// PromotionType
+model PromotionType {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  name        String?
+  isActive    Boolean  @default(true)
+  isDefault   Boolean?
+  description String?
+  order       Int?
+  group       String?
+}
+
+// Promotion
+model Promotion {
+  id          Int       @id @default(autoincrement())
+  content     String?
+  isActive    Boolean?
+  description String?
+  order       Int?
+  group       String?
+  createdAt   DateTime  @default(now())
+  contactId   Int?
+  userId      Int?
+  typeId      Int?
+  test        Int?
+  contact     Contact?  @relation(fields: [contactId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id])
+  type        PromotionType? @relation(fields: [typeId], references: [id])
+}
+
+// PropertyType
+model PropertyType {
+  id        Int     @id @default(autoincrement())
+  name      String  @db.VarChar(255)
+  isActive  Boolean @default(true)
+  isDefault Boolean
+  order     Int     @default(1)
+}
+
+// ResourceCategory
+model ResourceCategory {
+  id            Int      @id @default(autoincrement())
+  name          String
+  description   String?
+  isCommercial  Boolean?
+  isResidential Boolean?
+  isDefault     Boolean?
+  isActive      Boolean?
+  order         Int?
+}
+
+// ResourceFile
+model ResourceFile {
+  id            Int      @id @default(autoincrement())
+  name          String?
+  description   String?
+  location      String
+  isCommercial  Boolean?
+  isResidential Boolean?
+  test          Boolean?
+  createdAt     DateTime @default(now())
+}
+
+// Resource
+model Resource {
+  id            Int       @id @default(autoincrement())
+  name          String?
+  description   String?
+  isCommercial  Boolean?
+  isResidential Boolean?
+  test          Boolean?
+  createdAt     DateTime  @default(now())
+  categoryId    Int?
+  userId        Int?
+  location      String?
+  contentType   String?
+  fileName      String?
+  updatedAt     DateTime?
+  content       String?
+  category      ResourceCategory? @relation(fields: [categoryId], references: [id])
+  user          User?            @relation(fields: [userId], references: [id])
+}
+
+// Role
+model Role {
+  id          Int     @id @default(autoincrement())
+  slug        String  @unique
+  name        String?
+  views       Json?
+  description String?
+  isActive    Boolean @default(true)
+  isDefault   Boolean @default(false)
+  metadata    Json?
+  order       Int     @default(1)
+  group       String?
+}
+
+// RoofType
+model RoofType {
+  id        Int     @id @default(autoincrement())
+  slug      String  @unique
+  name      String?
+  isActive  Boolean?
+  isDefault Boolean?
+  description String?
+  order     Int?
+  group     String?
+}
+
+// ServiceArea
+model ServiceArea {
+  id           Int       @id @default(autoincrement())
+  isPrimary    Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  coordinates  String   @db.VarChar(255) //This is a placeholder for the POINT type. Use raw SQL for operations.
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now())
+  stateId      Int?
+  partnerId    Int?
+  state        State?    @relation(fields: [stateId], references: [id])
+  partner      Partner?  @relation(fields: [partnerId], references: [id])
+}
+
+// Service
+model Service {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  imageUrl    String?
+  serviceUrl  String?
+  websiteUrl  String?
+  price       Float?
+  description String?
+  name        String?
+  isActive    Boolean   @default(true)
+  metadata    Json?
+  group       String?
+  isDefault   Boolean?
+  isApproved  Boolean?
+  order       Int       @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+  partnerId   Int?
+  partner     Partner?  @relation(fields: [partnerId], references: [id])
+}
+
+// SolarIncentive
+model SolarIncentive {
+  id          Int       @id @default(autoincrement())
+  name        String?
+  isActive    Boolean?
+  description String?
+  order       Int?
+  group       String?
+  test        Boolean?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+  contactId   Int?
+  contact     Contact?  @relation(fields: [contactId], references: [id])
+}
+
+// State
+model State {
+  id      Int     @id @default(autoincrement())
+  code    String  @db.VarChar(2)
+  state   String  @db.VarChar(25)
+  country String  @db.VarChar(7)
+}
+
+// Task
+model Task {
+  id             Int       @id @default(autoincrement())
+  name           String
+  dateCompleted  DateTime?
+  dateAssigned   DateTime?
+  dueDate        DateTime?
+  slug           String?
+  isActive       Boolean   @default(true)
+  group          String?
+  metadata       Json?
+  isDefault      Boolean   @default(false)
+  order          Int       @default(1)
+  contactId      Int?
+  assignedToId   Int?
+  assignedById   Int?
+  projectId      Int?
+  userId         Int?
+  contact        Contact?  @relation(fields: [contactId], references: [id])
+  assignedTo     User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedBy     User?     @relation("AssignedBy", fields: [assignedById], references: [id])
+  project        Project?  @relation(fields: [projectId], references: [id])
+  user           User?     @relation(fields: [userId], references: [id])
+}
+
+// TenantUser
+model TenantUser {
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  tenantId  Int
+  userId    Int
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  @@id([tenantId, userId])
+}
+
+// Tenant
+model Tenant {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique
+  isActive    Boolean   @default(true)
+  config      Json?
+  name        String
+  description String?
+  isDefault   Boolean   @default(false)
+  order       Int       @default(1)
+  @@unique([name])
+}
+
+// UserClosingform
+model UserClosingform {
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now())
+  closingform_id Int
+  userId         Int
+  closingform    ClosingForm @relation(fields: [closingform_id], references: [id])
+  user           User        @relation(fields: [userId], references: [id])
+  @@id([closingform_id, userId])
+}
+
+// UserGroupCommercialContact
+model UserGroupCommercialContact {
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @default(now())
+  ccontactId  Int
+  userGroupId Int
+  ccontact    CommercialContact   @relation(fields: [ccontactId], references: [id])
+  userGroup   UserGroup            @relation(fields: [userGroupId], references: [id])
+  @@id([ccontactId, userGroupId])
+}
+
+// UserGroupContact
+model UserGroupContact {
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now())
+  contactId  Int
+  userGroupId Int
+  contact    Contact   @relation(fields: [contactId], references: [id])
+  userGroup  UserGroup @relation(fields: [userGroupId], references: [id])
+  @@id([contactId, userGroupId])
+}
+
+model CommercialContact {
+  id          Int      @id @default(autoincrement())
+  firstName   String
+  lastName    String
+  email       String   @unique
+  phoneNumber String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+// UserGroupManager
+model UserGroupManager {
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+  userGroupId Int
+  userId      Int
+  userGroup   UserGroup @relation(fields: [userGroupId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+  @@id([userGroupId, userId])
+}
+
+// UserGroupType
+model UserGroupType {
+  id          Int       @id @default(autoincrement())
+  isActive    Boolean   @default(true)
+  name        String?
+  description String?
+  isDefault   Boolean   @default(false)
+  order       Int       @default(1)
+  slug        String?
+  @@unique([name])
+}
+
+// UserGroupUser
+model UserGroupUser {
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now())
+  userGroupId Int
+  userId      Int
+  userGroup   UserGroup @relation(fields: [userGroupId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+  @@id([userGroupId, userId])
+}
+
+// UserGroup
+model UserGroup {
+  id             Int        @id @default(autoincrement())
+  isActive       Boolean    @default(true)
+  name           String
+  description    String?
+  isDefault      Boolean    @default(false)
+  order          Int        @default(1)
+  tenantId       Int?
+  managerId      Int?
+  zoneId         Int?
+  typeId         Int?
+  picUrl         String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  organizationId Int?
+  config         Json?
+  projects       Project[]
+  boards         ProjectBoard[]
+  tenant         Tenant?    @relation(fields: [tenantId], references: [id])
+  manager        User?      @relation(fields: [managerId], references: [id])
+  type           UserGroupType? @relation(fields: [typeId], references: [id])
+  users          UserGroupUser[]
+  organization   Organization?  @relation(fields: [organizationId], references: [id])
+  @@unique([name])
+}
+
+// UserType
+model UserType {
+  id          Int     @id @default(autoincrement())
+  slug        String  @unique
+  name        String?
+  description String?
+  isDefault   Boolean?
+  isActive    Boolean?
+  order       Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// User
+model User {
+  id                    Int        @id @default(autoincrement())
+  email                 String     @unique
+  password              String?
+  firstName             String
+  lastName              String?
+  primaryPhone          String?
+  picUrl                String?
+  passwordHash          String?
+  isSpanishSpeaker      Boolean    @default(false)
+  lastLoginDate         DateTime?
+  isActive              Boolean    @default(true)
+  inActiveDate          DateTime?
+  metadata              Json?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  userGroupId           Int?
+  roleId                Int?
+  isManager             Boolean?
+  baseline              Float?
+  profileId             Int?
+  partnerId             Int?
+  apiKey                ApiKey?
+  isSelfGenOnly         Boolean    @default(false)
+  timezone              Json?
+  lastManagerLoginDate  DateTime?
+  fid                   String?
+  notifications         Json?
+  organizationId        Int?
+  stripeCustomerId      String?
+  config                Json?
+  activity              Activity
+  adders                 Adder[]
+  userGroup             UserGroup? @relation(fields: [userGroupId], references: [id])
+  role                  Role?      @relation(fields: [roleId], references: [id])
+  partner               Partner?   @relation(fields: [partnerId], references: [id])
+  organization          Organization? @relation(fields: [organizationId], references: [id])
+  @@index([userGroupId], name: "userGroupId")
+  @@index([roleId], name: "roleId")
+  @@index([partnerId], name: "partnerId")
+  @@index([organizationId], name: "organizationId")
+}
+
+// UtilityProvider
+model UtilityProvider {
+  id        Int    @id @default(autoincrement())
+  name      String?
+  shortName String?
+  state     String?
+  ratePlans Json?
+  @@index([state], name: "state_index")
+}
+
+// Zone
+model Zone {
+  id          Int       @id @default(autoincrement())
+  county      String?
+  state       String?
+  city        String?
+  postalCode  String?
+  address1    String?
+  address2    String?
+  metadata    Json?
+  isPrimary   Boolean?
+  isActive    Boolean?
+  coordinates String   @db.VarChar(255) //This is a placeholder for the POINT type. Use raw SQL for operations.
+  partnerId   Int?
+  lenderId    Int?
+  partner     Partner?  @relation(fields: [partnerId], references: [id])
+  lender      Lender?   @relation(fields: [lenderId], references: [id])
+  @@index([partnerId], name: "partnerId")
+  @@index([lenderId], name: "lenderId")
+}

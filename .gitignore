@@ -1,2 +1,3 @@
 /__MACOSX/
 .env
+/node_modules/
