@@ -15,15 +15,21 @@ const jwt = require('jsonwebtoken');
 
 
 exports.list = async function(req, res,next) {
-    const updates = await models.contact_update.findAll();
+    const updates = await prisma.contactUpdate.findMany();
     res.json(updates);
 }
 exports.create = async(req, res,next)=> {
     const {user, role} = req.token;
     const newUpdate  = req.body;
-    const userModel = await models.user.findByPk(user,{where:{isActive:true}});
+    const userModel = await prisma.user.findFirst({
+        where: {
+            id: user,
+            isActive: true
+        }
+    });
     if(!userModel){
-        return next({message:'User not active'});
+        // return next({message:'User not active'});
+        return res.status(400).send({message: 'User not active'})
     }
     if(!newUpdate.toId){
         return res.json({});
@@ -33,7 +39,7 @@ exports.create = async(req, res,next)=> {
         const timezone = newUpdate.appointment.timezone;
         const appointment = newUpdate.appointment;
         const typeId = appointment.typeId;
-        const appointmentTypeModel = await models.appointment_type.findOne({
+        const appointmentTypeModel = await prisma.appointment_type.findOne({
             where: {
                 id:typeId,
                 isActive:true
@@ -49,20 +55,17 @@ exports.create = async(req, res,next)=> {
           contactId: newUpdate.contactId,
           userId:user
       }
-      const newAppointmentModel = await models.appointment.create(newAppointment);
-
-
-
+      const newAppointmentModel = await prisma.appointment.create({data: newAppointment});
 
       newUpdate.appointmentId = newAppointmentModel.id;
     }
 
-    const newUpdateModel = await models.contact_update.create(newUpdate);
+    const newUpdateModel = await prisma.contact_update.create({data: newUpdate});
     const to = await newUpdateModel.getTo();
     const slug = to.get('slug');
 
 
-   const contactModel = await models.contact.findByPk(newUpdateModel.contactId);
+   const contactModel = await prisma.contact.findUnique({where: {id: newUpdateModel.contactId}});
     if(slug.indexOf('appointment-set') > -1 || slug.indexOf('reschedule') > -1){
        const attendees =[];
        const users = contactModel.getUsers();
@@ -232,7 +235,10 @@ exports.create = async(req, res,next)=> {
 
 
 
-    await contactModel.save();
+    await prisma.contact.update({
+        where: {id: contactModel.id},
+        data: contactModel
+    })
     res.json(newUpdate);
 
 }
