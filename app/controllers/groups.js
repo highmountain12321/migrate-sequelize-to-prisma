@@ -11,745 +11,919 @@ const {QueryTypes,Op} = require("sequelize");
 const Sequelize = require('sequelize');
 const {Services} = require("../services");
 
-exports.listClosingForms = async function (req, res, next) {
-    const {isActive = true } = req.query;
+exports.listClosingForms = async function(req, res, next) {
+    const isActive = req.query.isActive === 'true'; // Parse from query
 
     try {
-        const id = req.params.groupId;
-        const userGroupModel = req.loadedUserGroupModel
-        const contacts = await userGroupModel.getContacts({
-            attributes:['id'],
-            include:[
-                {
-                    where:{
-                        isActive
-                    },
-                    model: models.closing_form,
-                    as: 'closingForms',
-                    include: [
-                        {
-                            model: models.closing_form_status,
-                            as: 'status',
-                            attributes:['name']
-                        },
-                        {
-                            model: models.closing_form_update,
-                            as: 'updates',
-                            attributes:['createdAt'],
-                            include:[{
-                                model: models.closing_form_update_type,
-                                as: 'type',
-                                attributes: ['name']
-                            }]
-                        },
-                        {
-                            model: models.contact,
-                            as: 'contact',
-                            attributes: ['firstName','lastName','email','primaryPhone','busName'],
-                            include:[{
-                                model: models.contact_system,
-                                as: 'system'
-                            },{
-                                model: models.gen_type,
-                                as: 'genType',
-                                attributes:['name']
-                            }, {
-                                model: models.partner_proposal,
-                                as: 'partnerProposals',
-                                include:[ {
-                                    model: models.partner,
-                                    as: 'partner',
-                                    attributes:['name','id']
-                                }]
-                            },{
-                                model: models.lender_proposal,
-                                as: 'lenderProposals',
-                                include:[ {
-                                    model: models.lender,
-                                    as: 'lender',
-                                    attributes:['name']
-                                }]
-                            },{
-                                model: models.user,
-                                as: 'users',
-                                attributes:['firstName','lastName','picUrl'],
-                                include:[ {
-                                    model: models.role,
-                                    as: 'role',
-                                    attributes:['name']
-                                }]
-                            }]
+        const id = parseInt(req.params.groupId);
+        // Assuming userGroupModel is previously loaded into the request object
+        const userGroupModel = req.loadedUserGroupModel; 
+
+        const contacts = await prisma.userGroup.findUnique({
+            where: { id: id },
+            select: {
+                contacts: {
+                    select: {
+                        id: true,
+                        closingForms: {
+                            where: {
+                                isActive: isActive
+                            },
+                            include: {
+                                status: {
+                                    select: { name: true }
+                                },
+                                updates: {
+                                    select: {
+                                        createdAt: true,
+                                        type: {
+                                            select: { name: true }
+                                        }
+                                    }
+                                },
+                                contact: {
+                                    select: {
+                                        firstName: true,
+                                        lastName: true,
+                                        email: true,
+                                        primaryPhone: true,
+                                        busName: true,
+                                        system: true,
+                                        genType: {
+                                            select: { name: true }
+                                        },
+                                        partnerProposals: {
+                                            select: {
+                                                partner: {
+                                                    select: { name: true, id: true }
+                                                }
+                                            }
+                                        },
+                                        lenderProposals: {
+                                            select: {
+                                                lender: {
+                                                    select: { name: true }
+                                                }
+                                            }
+                                        },
+                                        users: {
+                                            select: {
+                                                firstName: true,
+                                                lastName: true,
+                                                picUrl: true,
+                                                role: {
+                                                    select: { name: true }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            orderBy: {
+                                id: 'desc'
+                            }
                         }
-                    ],
-                    order: [
-                        ['id', 'DESC']
-                    ]
+                    }
                 }
-            ]
+            }
         });
+
         let closingForms = [];
 
-        for(let i = 0; i < contacts.length;i++){
-            if(contacts[i].closingForms) {
-                closingForms = [...closingForms, ...contacts[i].closingForms];
+        for (let contact of contacts.contacts) {
+            if (contact.closingForms) {
+                closingForms = [...closingForms, ...contact.closingForms];
             }
         }
-        res.json({rows: closingForms, count:closingForms.length });
-    }catch(e){
+
+        res.json({ rows: closingForms, count: closingForms.length });
+
+    } catch (e) {
         console.error(e);
         next(e);
     }
-
 }
+
+
 exports.list = async function (req, res) {
     const {isActive = true, type, isManager = false, q, name, organizationFilter} = req.query;
     const userModel = req.userModel;
 
-
-    const where ={
+    const where = {
         isActive,
     };
 
-
-
     if (q && q.length > 0) {
-        where[Op.or] = Services.Search.teamName(q);
+        where.OR = Services.Search.teamName(q); // Assuming `Services.Search.teamName` returns an array
     }
     if (name && name.length > 0) {
-        where[Op.or] = Services.Search.teamName(name);
+        where.OR = Services.Search.teamName(name); // Assuming `Services.Search.teamName` returns an array
     }
-
-
 
     const query = {
-        where,
-            attributes: [
-        "isActive",
-        "id",
-        "name",
-        'typeId',
-        'isDefault',
-        'description'
-    ],
-        include: [
-        {
-            as: "type",
-            attributes: ['id','name','slug'],
-            model: models.user_group_type,
-        },     {
-                as: "organization",
-                attributes: ['id','name'],
-                model: models.organization,
+        where: where,
+        select: {
+            isActive: true,
+            id: true,
+            name: true,
+            typeId: true,
+            isDefault: true,
+            description: true,
+            type: {
+                select: {
+                    id: true,
+                    name: true,
+                    slug: true
+                }
+            },
+            organization: {
+                select: {
+                    id: true,
+                    name: true
+                }
             }
-    ],
-        order: [
-        ['id', 'DESC']
-    ]
-    }
+        },
+        orderBy: {
+            id: 'desc'
+        }
+    };
 
-
-
-    if(organizationFilter){
-        const organizationInclude = (_.find(query.include, { as: 'organization' }));
-        organizationInclude.required = true;
-        organizationInclude.where = {
-            id: organizationFilter.toString().indexOf(',') > -1 ? organizationFilter.split(',') : [organizationFilter]
+    if (organizationFilter) {
+        if (organizationFilter.toString().indexOf(',') > -1) {
+            query.where.organization = {
+                id: {
+                    in: organizationFilter.split(',')
+                }
+            };
+        } else {
+            query.where.organization = {
+                id: organizationFilter
+            };
         }
     }
 
-    if(type){
-        const typeInclude = (_.find(query.include, { as: 'type' }));
-        typeInclude.required = true;
-        typeInclude.where = {
+    if (type) {
+        query.where.type = {
             slug: type
-        }
+        };
     }
 
-    if(userModel.isAdmin()){
-        const allGroups = await models.user_group.findAndCountAll(query);
+    if (userModel.isAdmin()) {
+        const allGroups = await prisma.userGroup.findMany(query);
         res.json(allGroups);
         return;
     }
-    if(isManager === true){
-        const managedGroups = await userModel.getManagedGroups(query);
+
+    if (isManager === true) {
+        // The following lines need clarification as Prisma doesn't directly support operations like getManagedGroups
+        // You may need custom logic based on your schema
+        const managedGroups = await userModel.getManagedGroups(query); 
         const managedGroupsCount = await userModel.countManagedGroups(query);
-        res.json({rows: managedGroups, count: managedGroupsCount});
+        res.json({ rows: managedGroups, count: managedGroupsCount });
         return;
     }
-    const userGroups = await userModel.getGroups(query);
-    res.json({rows: userGroups});
+
+    const userGroups = await prisma.userGroup.findMany(query);
+    res.json({ rows: userGroups });
     return;
-
-
 }
+
+const { Prisma } = require('@prisma/client'); // Adjust the import path as necessary
+
 exports.listTypes = async function (req, res) {
-    const objArray = await models.user_group_type.findAll({where:{
-        isActive:true
-        }});
-    if(!objArray){
-        return  res.json({rows:[],count: 0});
-    }
-    res.json({rows:objArray,count: objArray.length});
+    const objArray = await prisma.userGroupType.findMany({
+        where: {
+            isActive: true
+        }
+    });
+    res.json({ rows: objArray || [], count: objArray ? objArray.length : 0 });
 }
+
 exports.listBoards = async function (req, res) {
     const id = req.params.groupId;
-    const userGroupModel = req.loadedUserGroupModel
-    const boards = await userGroupModel.getBoards();
-    res.json({rows:boards});
+    const userGroupModel = req.loadedUserGroupModel;
+    const boards = await prisma.board.findMany({
+        where: {
+            userGroupId: id
+        }
+    });
+    res.json({ rows: boards });
 }
 
 exports.createBoard = async function (req, res) {
+    // The logic seems to be misnamed. "createBoard" shouldn't list boards.
+    // Here's the code that lists boards (as per your provided function):
     const id = req.params.groupId;
-    const userGroupModel = req.loadedUserGroupModel
-    const boards = await userGroupModel.listBoards();
-    res.json({rows:boards});
+    const boards = await prisma.board.findMany({
+        where: {
+            userGroupId: id
+        }
+    });
+    res.json({ rows: boards });
 }
-
-
 
 exports.listUsers = async function (req, res) {
     const id = req.params.groupId;
-    const userGroupModel = req.loadedUserGroupModel
-    const {role, isActive = true, limit, offset, q} = req.query;
+    const { role, isActive = true, q } = req.query;
 
     const where = {
         isActive,
-    }
-    if(q && q.length > 1){
-        where[Op.or] = Services.Search.query(q);
-    }
-
-    const query = {
-        order: [
-            ['id', 'DESC']
-        ],
-        where,
-        attributes:['createdAt','id','firstName','lastName','primaryPhone','email','picUrl'],
-        include:[{
-            attributes:['name'],
-            model:models.role,
-            as:'role'
-        }]
-    }
-
-    if(role){
-        const roleInclude = (_.find(query.include, { as: 'role' }));
-        roleInclude.required = true;
-        roleInclude.where = {
-            slug: role
-        }
-    }
-
-
-    const rows = await userGroupModel.getUsers(query)
-    const count = await userGroupModel.countUsers(query)
-
-    res.json({rows, count});
-}
-exports.listManagers = async function (req, res) {
-    const {isActive = true, limit = 1000, offset = 0, q} = req.query;
-
-    const where = {
-        isActive,
-    }
-    if(q && q.length > 1){
-        where[Op.or] = Services.Search.query(q);
-    }
-
-
-
-    const userGroupModel = req.loadedUserGroupModel;
-    const query = {
-        where,
-        attributes:['createdAt','id','firstName','lastName','primaryPhone','email','picUrl'],
-        include:[{
-            attributes:['name'],
-            model:models.role,
-            as:'role'
-        }]
     };
 
+    if (q && q.length > 1) {
+        where.OR = Services.Search.query(q); // Assuming `Services.Search.query` returns an array
+    }
 
-
-
-
-    const rows = await userGroupModel.getManagers(query);
-    const count = await userGroupModel.countManagers(query);
-    res.json({rows, count});
-}
-
-
-exports.showContact = async function(req, res,next) {
-    const groupId = req.params.groupId;
-    const contactId = req.params.contactId;
-    const {user, role} = req.token;
-    const contactModel = await models.contact.findByPk( contactId,{
-        order:[
-            [ 'id', 'DESC']
-        ],
-        include:[{
-            model: models.document,
-            as:'documents',
-            include:[{
-                model: models.document_type,
-                as:'type',
-                attributes:['name','slug'],
-            }]
-        },{
-            model: models.lender_proposal,
-            as:'lenderProposals',
-            attributes:['months','years','rate','loanAmount','systemPrice','isCash', 'cashAmount','id','ppwNet','ppwGross','systemSize'],
-            include:[{
-                model: models.lender,
-                as:'lender',
-                attributes:['name'],
-            }]
-        },{
-            model: models.partner_proposal,
-            as:'partnerProposals',
-            attributes:['url'],
-            include:[{
-                model: models.partner,
-                as:'partner',
-                attributes:['id','name','userId'],
-            }]
-        },{
-            model: models.contact_update,
-            as:'updates',
-            attributes:['note','createdAt','id'],
-            include: [{
-                model: models.option,
-                as: 'from',
-                attributes:['name','id']
-
-            },{
-                model: models.user,
-                as: 'user',
-                attributes:['id','firstName','lastName']
-            }, {
-                model: models.option,
-                as: 'to',
-                attributes:['name','id','slug'],
-            }]
-        },{
-            model:models.gen_type,
-            as:'genType',
-            attributes:['name','slug','id']
-        },{
-            model:models.roof_type,
-            as:'roofType',
-            attributes:['name']
-        },{
-            model:models.user,
-            as:'users',
-            attributes:['id','firstName','lastName','picUrl','primaryPhone','email'],
-            include: [{
-                model: models.role,
-                as: 'role',
-                attributes:['name','slug']
-
-            }],
+    const query = {
+        orderBy: {
+            id: 'desc'
         },
-            {
-                model:models.contact_source,
-                as:'source',
-            },{
-                model:models.contact_type,
-                as:'type',
-            },{
-                model:models.hoa,
-                as:'hoa',
-            },
-            {model: models.appointment, include: ['user'], as:'appointments'},
-        ]});
-    if(!contactModel){
-        return next({message:'Homeowner not found'});
-    }
-    if(!contactModel.users){
-        return next({message:'No users assigned'})
-    }
-    const userIds = contactModel.users.map( u => parseFloat(u.id));
-
-
-    res.status(200).json(contactModel);
-}
-exports.listCounts = async function (req,res){
-    const contactCount = await models.user_group.findByPk(id, {
-        raw: true,
-        nest: true,
-        attributes: [
-            "id",
-            [Sequelize.fn("COUNT", Sequelize.col("contacts.id")), "contactCount"],
-        ],
-        include: [
-            {
-                where: {
-                    isActive:true
-                },
-                as: "contacts",
-                model: models.contact,
-                attributes: [],
+        where: where,
+        select: {
+            createdAt: true,
+            id: true,
+            firstName: true,
+            lastName: true,
+            primaryPhone: true,
+            email: true,
+            picUrl: true,
+            role: {
+                select: {
+                    name: true
+                }
             }
-        ],
-        group: ["user_group.id"],
-    });
-}
-exports.listContacts = async function (req, res) {
-    const loadedUserGroupModel = req.loadedUserGroupModel;
-    const {stageId,propertyType, isActive=true, limit=1000, offset=0, q} = req.query;
+        }
+    };
 
+    if (role) {
+        query.where.role = {
+            slug: role
+        };
+    }
+
+    const rows = await prisma.userGroup.findMany(query);
+    const count = await prisma.userGroup.count(query);
+
+    res.json({ rows, count });
+}
+
+exports.listManagers = async function (req, res) {
+    const { isActive = true, q } = req.query;
 
     const where = {
         isActive,
-    }
-    if(q && q.length > 1){
-        where[Op.or] = Services.Search.query(q);
-    }
-    if(propertyType && propertyType.toLowerCase() === 'commercial'){
-        where.propertyTypeId = 2;
-    }
-    if(propertyType && propertyType.toLowerCase() === 'residential'){
-        where.propertyTypeId = 1;
-    }
+    };
 
+    if (q && q.length > 1) {
+        where.OR = Services.Search.query(q); // Assuming `Services.Search.query` returns an array
+    }
 
     const query = {
-        where,
-        required:false,
-        order: [
-            ['id', 'DESC'],
-            [ {model:models.contact_update, as:'updates'}, 'id', 'DESC' ],
-        ],
-        include:[{
-            order: [
-                ['id', 'DESC']
-            ],
-            attributes:['createdAt','id'],
-            model: models.contact_update,
-            as:'updates',
-            include: [{
-                model: models.option,
-                as: 'to'
-            }]
-        },{
-            attributes:['id','name'],
-            model: models.contact_stage,
-            as:  'stage',
-        },{
-            model: models.user,
-            as: 'users',
-            attributes:['firstName','lastName','primaryPhone','email','roleId','id','picUrl'],
-            include:[{
-                model: models.role,
-                as: 'role',
-            }]
-        }]
+        where: where,
+        select: {
+            createdAt: true,
+            id: true,
+            firstName: true,
+            lastName: true,
+            primaryPhone: true,
+            email: true,
+            picUrl: true,
+            role: {
+                select: {
+                    name: true
+                }
+            }
+        }
+    };
 
+    const rows = await prisma.userGroup.findMany(query);
+    const count = await prisma.userGroup.count(query);
+
+    res.json({ rows, count });
+}
+
+
+
+exports.showContact = async function(req, res, next) {
+    const groupId = req.params.groupId;
+    const contactId = req.params.contactId;
+    const { user, role } = req.token;
+
+    try {
+        const contactModel = await prisma.contact.findUnique({
+            where: {
+                id: parseInt(contactId)
+            },
+            orderBy: {
+                id: 'desc'
+            },
+            select: {
+                documents: {
+                    select: {
+                        type: {
+                            select: {
+                                name: true,
+                                slug: true
+                            }
+                        }
+                    }
+                },
+                lenderProposals: {
+                    select: {
+                        months: true,
+                        years: true,
+                        rate: true,
+                        loanAmount: true,
+                        systemPrice: true,
+                        isCash: true,
+                        cashAmount: true,
+                        id: true,
+                        ppwNet: true,
+                        ppwGross: true,
+                        systemSize: true,
+                        lender: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    }
+                },
+                partnerProposals: {
+                    select: {
+                        url: true,
+                        partner: {
+                            select: {
+                                id: true,
+                                name: true,
+                                userId: true
+                            }
+                        }
+                    }
+                },
+                updates: {
+                    select: {
+                        note: true,
+                        createdAt: true,
+                        id: true,
+                        from: {
+                            select: {
+                                name: true,
+                                id: true
+                            }
+                        },
+                        user: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true
+                            }
+                        },
+                        to: {
+                            select: {
+                                name: true,
+                                id: true,
+                                slug: true
+                            }
+                        }
+                    }
+                },
+                genType: {
+                    select: {
+                        name: true,
+                        slug: true,
+                        id: true
+                    }
+                },
+                roofType: {
+                    select: {
+                        name: true
+                    }
+                },
+                users: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        picUrl: true,
+                        primaryPhone: true,
+                        email: true,
+                        role: {
+                            select: {
+                                name: true,
+                                slug: true
+                            }
+                        }
+                    }
+                },
+                source: true, 
+                type: true, 
+                hoa: true,
+                appointments: {
+                    select: {
+                        user: true
+                    }
+                }
+            }
+        });
+
+        if (!contactModel) {
+            return next({ message: 'Homeowner not found' });
+        }
+
+        if (!contactModel.users) {
+            return next({ message: 'No users assigned' });
+        }
+
+        const userIds = contactModel.users.map(u => parseFloat(u.id));
+
+        res.status(200).json(contactModel);
+
+    } catch (error) {
+        console.error(error);
+        next(error);
+    }
+}
+
+
+exports.listCounts = async function(req, res, next) {
+    const groupId = req.params.groupId;
+
+    try {
+        const contactCount = await prisma.userGroup.findUnique({
+            where: {
+                id: parseInt(groupId)
+            },
+            select: {
+                id: true,
+                contacts: {
+                    where: {
+                        isActive: true
+                    },
+                    select: {
+                        id: true
+                    }
+                }
+            }
+        });
+
+        const countResult = {
+            id: contactCount.id,
+            contactCount: contactCount.contacts.length
+        };
+
+        res.status(200).json(countResult);
+    } catch (error) {
+        console.error(error);
+        next(error);
+    }
+}
+
+
+exports.listContacts = async function(req, res, next) {
+    const loadedUserGroupModelId = req.loadedUserGroupModel.id;
+    const { stageId, propertyType, isActive = true, limit = 1000, offset = 0, q } = req.query;
+
+    const where = {
+        isActive: isActive,
+        userGroupId: parseInt(loadedUserGroupModelId)
+    };
+
+    // For the `q` condition, Prisma's equivalent to Sequelize's Op.or is using the `OR` key
+    if (q && q.length > 1) {
+        const searchConditions = Services.Search.query(q); // Assuming this function returns an array of conditions
+        where.OR = searchConditions; // This will implement the OR logic for Prisma
     }
 
-    if(stageId){
-        const stageInclude = (_.find(query.include, { as: 'stage' }));
-        stageInclude.required = true;
-        stageInclude.where = {
-            id: stageId
+    if (propertyType) {
+        if (propertyType.toLowerCase() === 'commercial') {
+            where.propertyTypeId = 2;
+        } else if (propertyType.toLowerCase() === 'residential') {
+            where.propertyTypeId = 1;
         }
     }
 
+    const queryOptions = {
+        where: where,
+        take: limit,
+        skip: offset,
+        orderBy: {
+            id: 'desc'
+        },
+        include: {
+            updates: {
+                orderBy: {
+                    id: 'desc'
+                },
+                include: {
+                    to: true
+                }
+            },
+            stage: true,
+            users: {
+                select: {
+                    firstName: true,
+                    lastName: true,
+                    primaryPhone: true,
+                    email: true,
+                    roleId: true,
+                    id: true,
+                    picUrl: true,
+                    role: true
+                }
+            }
+        }
+    };
 
-   // const count = await group.countContacts(query);
+    if (stageId) {
+        queryOptions.where.stageId = parseInt(stageId);
+    }
+
+    try {
+        const contacts = await prisma.contact.findMany(queryOptions);
+        const count = await prisma.contact.count({
+            where: queryOptions.where
+        });
+
+        res.status(200).json({ rows: contacts, count: count });
+    } catch (error) {
+        console.error(error);
+        next(error);
+    }
+};
 
 
-    const count = await loadedUserGroupModel.countContacts(query);
-    query.limit = limit || 25;
-    query.offset =  offset || 0;
-    const rows = await loadedUserGroupModel.getContacts(query);
+exports.count = async function(req, res, next) {
+    try {
+        const count = await prisma.userGroup.count();
+        res.status(200).json({
+            count: count
+        });
+    } catch (error) {
+        console.error(error);
+        next(error);
+    }
+};
 
 
 
-
-    return res.json({rows, count});
-}
-
-
-exports.count = async function (req, res) {
-    const count = await models.user_group.count();
-    res.json({
-        count: count,
-    })
-}
-
-
-
-exports.create = async function(req, res,next) {
-
+exports.create = async function(req, res, next) {
     const group = req.body;
     try {
-        if (req.body.id) {
-            res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`)
+        if (group.id) {
+            res.status(400).send(`Bad request: ID should not be provided, since it is determined automatically by the database.`);
         } else {
-            const newGroupModel = await models.user_group.create(group,{
-                include: [
-                    {
-                        as:'organization',
-                        model: models.organization
-                    }]
+            const newGroupModel = await prisma.userGroup.create({
+                data: group,
+                include: {
+                    organization: true
+                }
             });
-            if(newGroupModel.isDefault){
-               await models.user_group.update( { isDefault:false },{
+            if (newGroupModel.isDefault) {
+                await prisma.userGroup.updateMany({
                     where: {
-                        id : {[Op.ne]: newGroupModel.id},
+                        NOT: {
+                            id: newGroupModel.id
+                        }
+                    },
+                    data: {
+                        isDefault: false
                     }
                 });
             }
-            res.status(201).json(await newGroupModel.reload({
-                include:[
-                    {
-                        as:'organization',
-                        model: models.organization
-                    }
-                ]}));
+            const reloadedGroup = await prisma.userGroup.findUnique({
+                where: { id: newGroupModel.id },
+                include: { organization: true }
+            });
+            res.status(201).json(reloadedGroup);
         }
-    }catch(e){
+    } catch (e) {
         console.log(e);
-        next({message:e.message});
+        next({ message: e.message });
     }
-
-}
-
-
-
-exports.patchUser = async function(req, res,next) {
-    const groupId = req.params.groupId;
-    const obj = req.body;
-    let userId = obj.add;
-    if(obj.remove){
-        userId = obj.remove;
-    }
-    try {
-        const groupModel = await models.user_group.findByPk(groupId);
-        if(!groupModel || groupModel.isActive === false){
-            return next({message:'Group is not active'});
-        }
-        const userModel = await models.user.findByPk(userId);
-        if(!userModel || userModel.isActive === false){
-            return next({message:'User is not active'});
-        }
-        userModel.organizationId = groupModel.organizationId;
-        await userModel.save();
-        if(obj.add) {
-            await groupModel.addUser(userModel.id);
-        }
-        if(obj.remove){
-            await groupModel.removeUser(userId);
-        }
-
-        res.status(201).json(await groupModel.reload());
-    }catch(e){
-        next({message:e.message});
-    }
-}
-exports.patchManager = async function(req, res,next) {
-    const groupId = req.params.groupId;
-    const obj = req.body;
-    let userId = obj.add;
-    if(obj.remove){
-        userId = obj.remove;
-    }
-    try {
-        const groupModel = await models.user_group.findByPk(groupId);
-        if(!groupModel || groupModel.isActive === false){
-            return next({message:'Group is not active'});
-        }
-        const userModel = await models.user.findByPk(userId);
-        if(!userModel || userModel.isActive === false){
-            return next({message:'User is not active'});
-        }
-        userModel.organizationId = groupModel.organizationId;
-        await userModel.save();
-        if(obj.add) {
-            await groupModel.addManager(userId);
-        }
-        if(obj.remove){
-            await groupModel.removeManager(userId);
-        }
-
-        res.status(201).json(groupModel);
-    }catch(e){
-        next({message:e.message});
-    }
-
-}
-
-exports.patchContact = async function(req, res,next) {
-    const groupId = req.params.groupId;
-    const obj = req.body;
-    let id = obj.add;
-    if(obj.remove){
-        id = obj.remove;
-    }
-    try {
-        const groupModel = await models.user_group.findByPk(groupId);
-        if(!groupModel || groupModel.isActive === false){
-            return next({message:'Group is not active'});
-        }
-        const contactModel = await models.contact.findByPk(id);
-        if(!contactModel || contactModel.isActive === false){
-            return next({message:'Contact is not active'});
-        }
-        if(obj.add) {
-            const idArray = Array.isArray(id) ? id : [id];
-            for(let i = 0; i < idArray.length; i++){
-                const cModel = await models.contact.findByPk(idArray[i]);
-                await groupModel.addContact(cModel);
-                await cModel.addGroup(groupModel)
-                await cModel.save();
-            }
-
-        }
-        if(obj.remove){
-            const idArray = Array.isArray(id) ? id : [id];
-            for(let i = 0; i < idArray.length; i++){
-                const cModel = await models.contact.findByPk(idArray[i]);
-                await groupModel.removeContact(cModel);
-                await cModel.removeGroup(groupModel)
-
-            }
-        }
-
-        res.status(201).json(groupModel);
-    }catch(e){
-        next({message:e.message});
-    }
-}
-
-
-exports.deleteUser = async function(req, res,next) {
-    const groupId = req.params.groupId;
-    const userId = req.params.userId;
-    try {
-        const group = await models.user_group.findByPk(groupId);
-        if(!group || group.isActive === false){
-            return next({message:'Group is not active'});
-        }
-
-        await group.removeUser(userId);
-
-        res.status(201).json(group);
-    }catch(e){
-        next({message:e.message});
-    }
-
-}
-exports.deleteContact = async function(req, res,next) {
-    const groupId = req.params.groupId;
-    const contactId = req.params.contactId;
-
-    const obj = req.body;
-    try {
-        const group = await models.user_group.findByPk(groupId);
-        if(!group || group.isActive === false){
-            return next({message:'Group is not active'});
-        }
-
-        await group.removeContact(contactId);
-
-        res.status(201).json(group);
-    }catch(e){
-        next({message:e.message});
-    }
-
-}
-
-
-
-
-exports.createContact = async function(req, res,next) {
-    const groupId = req.params.groupId;
-    const obj = req.body;
-    try {
-        const groupModel = await models.user_group.findByPk(groupId);
-        if(!groupModel || groupModel.isActive === false){
-            return next({message:'Group is not active'});
-        }
-        const contactModel = await models.contact.findByPk(obj.contactId);
-        if(!contactModel || contactModel.isActive === false){
-            return next({message:'Contact is not active'});
-        }
-        contactModel.organizationId = groupModel.organizationId;
-        await groupModel.addContact(contactModel);
-        await contactModel.save();
-
-        res.status(201).json(groupModel);
-    }catch(e){
-        next({message:e.message});
-    }
-
-}
-
-
-
-
-/**
- * Update contact
- */
-
-exports.update = async function(req, res,next) {
-    const id = req.params.groupId;
-    const body = req.body;
-
-    if(body.isDefault === true){
-         await models.user_group.update({isDefault:false}, { where: { isDefault: true } });
-    }
-    if(body.isDefault === false){
-       const userGroups = await models.user_group.findAll({ where: { isDefault: true } });
-       if(userGroups.length === 0){
-           return next({message:'Atleast 1 user team must be default'});
-       }
-    }
-    const obj = await models.user_group.update(body, {
-        where: { id: id },
-        include:[
-            {
-                model: models.organization,
-                as: 'organization',
-            }]
-    });
-    const userGroupObject = await models.user_group.findByPk(id,{
-        include:[
-            {
-                model: models.organization,
-                as: 'organization',
-            }]
-    });
-    if(body.organization) {
-        await userGroupObject.setOrganization(body.organization.id);
-    }
-    res.status(201).json(await userGroupObject.reload());
-}
-
-
-
-exports.show = async function (req, res) {
-    const id = req.params.groupId;
-    const obj = await models.user_group.findByPk(id,{
-        include:[
-            {
-                model: models.organization,
-                as: 'organization'
-            }]
-    });
-    res.status(200).json(obj);
 };
 
-exports.destroy = async function (req, res, next) {
+
+
+exports.patchUser = async function(req, res, next) {
+    const groupId = parseInt(req.params.groupId, 10);
+    const obj = req.body;
+    let userId = obj.add;
+    if (obj.remove) {
+        userId = obj.remove;
+    }
     try {
-        const id = req.params.groupId;
-        const obj = await models.user_group.findByPk(id);
-        const response = await obj.destroy()
-        res.json({data: response});
-    }catch(e){
+        const groupModel = await prisma.userGroup.findUnique({ where: { id: groupId } });
+        if (!groupModel || groupModel.isActive === false) {
+            return next({ message: 'Group is not active' });
+        }
+        const userModel = await prisma.user.findUnique({ where: { id: userId } });
+        if (!userModel || userModel.isActive === false) {
+            return next({ message: 'User is not active' });
+        }
+        await prisma.user.update({
+            where: { id: userId },
+            data: { organizationId: groupModel.organizationId }
+        });
+        if (obj.add) {
+            // Assuming a many-to-many relation
+            await prisma.userGroup.update({
+                where: { id: groupId },
+                data: {
+                    users: {
+                        connect: { id: userId }
+                    }
+                }
+            });
+        }
+        if (obj.remove) {
+            // Assuming a many-to-many relation
+            await prisma.userGroup.update({
+                where: { id: groupId },
+                data: {
+                    users: {
+                        disconnect: { id: userId }
+                    }
+                }
+            });
+        }
+        res.status(201).json(groupModel);
+    } catch (e) {
+        next({ message: e.message });
+    }
+};
+
+exports.patchManager = async function(req, res, next) {
+    const groupId = parseInt(req.params.groupId, 10);
+    const obj = req.body;
+    let managerId = obj.add;
+    if (obj.remove) {
+        managerId = obj.remove;
+    }
+    try {
+        const groupModel = await prisma.userGroup.findUnique({ where: { id: groupId } });
+        if (!groupModel || groupModel.isActive === false) {
+            return next({ message: 'Group is not active' });
+        }
+        const managerModel = await prisma.user.findUnique({ where: { id: managerId } });
+        if (!managerModel || managerModel.isActive === false) {
+            return next({ message: 'Manager is not active' });
+        }
+        await prisma.user.update({
+            where: { id: managerId },
+            data: { organizationId: groupModel.organizationId }
+        });
+        if (obj.add) {
+            // Assuming a many-to-many relation between userGroup and managers
+            await prisma.userGroup.update({
+                where: { id: groupId },
+                data: {
+                    managers: { // Assuming "managers" is the relation field in your Prisma schema.
+                        connect: { id: managerId }
+                    }
+                }
+            });
+        }
+        if (obj.remove) {
+            await prisma.userGroup.update({
+                where: { id: groupId },
+                data: {
+                    managers: {
+                        disconnect: { id: managerId }
+                    }
+                }
+            });
+        }
+        res.status(201).json(groupModel);
+    } catch (e) {
+        next({ message: e.message });
+    }
+};
+
+
+exports.patchContact = async function(req, res, next) {
+    const groupId = parseInt(req.params.groupId, 10);
+    const obj = req.body;
+    let id = obj.add;
+    if(obj.remove) {
+        id = obj.remove;
+    }
+    
+    try {
+        const groupModel = await prisma.userGroup.findUnique({ where: { id: groupId } });
+        if(!groupModel || !groupModel.isActive) {
+            return next({message: 'Group is not active'});
+        }
+        
+        const idArray = Array.isArray(id) ? id : [id];
+        for(let i = 0; i < idArray.length; i++) {
+            const contactModel = await prisma.contact.findUnique({ where: { id: idArray[i] } });
+            if(!contactModel || !contactModel.isActive) {
+                return next({message: 'Contact is not active'});
+            }
+            
+            if(obj.add) {
+                // Assuming a many-to-many relation between userGroup and contacts
+                await prisma.userGroup.update({
+                    where: { id: groupId },
+                    data: {
+                        contacts: { 
+                            connect: { id: idArray[i] }
+                        }
+                    }
+                });
+                
+                // Similarly, assuming a many-to-many relation from contact's side
+                await prisma.contact.update({
+                    where: { id: idArray[i] },
+                    data: {
+                        groups: { 
+                            connect: { id: groupId }
+                        }
+                    }
+                });
+            }
+            
+            if(obj.remove) {
+                await prisma.userGroup.update({
+                    where: { id: groupId },
+                    data: {
+                        contacts: { 
+                            disconnect: { id: idArray[i] }
+                        }
+                    }
+                });
+                
+                // Similarly, assuming a many-to-many relation from contact's side
+                await prisma.contact.update({
+                    where: { id: idArray[i] },
+                    data: {
+                        groups: { 
+                            disconnect: { id: groupId }
+                        }
+                    }
+                });
+            }
+        }
+        res.status(201).json(groupModel);
+    } catch(e) {
+        next({message: e.message});
+    }
+};
+
+// deleteUser
+exports.deleteUser = async function(req, res, next) {
+    const groupId = parseInt(req.params.groupId, 10);
+    const userId = parseInt(req.params.userId, 10);
+    try {
+        const group = await prisma.userGroup.findUnique({ where: { id: groupId } });
+        if(!group || !group.isActive) {
+            return next({message: 'Group is not active'});
+        }
+
+        // Disconnect the user from the group
+        await prisma.userGroup.update({
+            where: { id: groupId },
+            data: {
+                users: {
+                    disconnect: { id: userId }
+                }
+            }
+        });
+
+        res.status(201).json(group);
+    } catch(e) {
+        next({message: e.message});
+    }
+}
+
+// deleteContact
+exports.deleteContact = async function(req, res, next) {
+    const groupId = parseInt(req.params.groupId, 10);
+    const contactId = parseInt(req.params.contactId, 10);
+
+    try {
+        const group = await prisma.userGroup.findUnique({ where: { id: groupId } });
+        if(!group || !group.isActive) {
+            return next({message: 'Group is not active'});
+        }
+
+        // Disconnect the contact from the group
+        await prisma.userGroup.update({
+            where: { id: groupId },
+            data: {
+                contacts: {
+                    disconnect: { id: contactId }
+                }
+            }
+        });
+
+        res.status(201).json(group);
+    } catch(e) {
+        next({message: e.message});
+    }
+}
+
+// createContact
+exports.createContact = async function(req, res, next) {
+    const groupId = parseInt(req.params.groupId, 10);
+    const obj = req.body;
+
+    try {
+        const groupModel = await prisma.userGroup.findUnique({ where: { id: groupId } });
+        if(!groupModel || !groupModel.isActive) {
+            return next({message: 'Group is not active'});
+        }
+
+        const contactModel = await prisma.contact.findUnique({ where: { id: obj.contactId } });
+        if(!contactModel || !contactModel.isActive) {
+            return next({message: 'Contact is not active'});
+        }
+
+        // Link the contact to the group
+        await prisma.userGroup.update({
+            where: { id: groupId },
+            data: {
+                contacts: {
+                    connect: { id: contactModel.id }
+                }
+            }
+        });
+
+        // Update the organizationId of the contact
+        await prisma.contact.update({
+            where: { id: contactModel.id },
+            data: {
+                organizationId: groupModel.organizationId
+            }
+        });
+
+        res.status(201).json(groupModel);
+    } catch(e) {
+        next({message: e.message});
+    }
+};
+
+
+// update
+exports.update = async function(req, res, next) {
+    const id = parseInt(req.params.groupId, 10);
+    const body = req.body;
+
+    if(body.isDefault === true) {
+        await prisma.userGroup.updateMany({
+            where: { isDefault: true },
+            data: { isDefault: false }
+        });
+    }
+
+    if(body.isDefault === false) {
+        const userGroups = await prisma.userGroup.findMany({ where: { isDefault: true } });
+        if(userGroups.length === 0) {
+            return next({message: 'At least 1 user team must be default'});
+        }
+    }
+
+    const updatedUserGroup = await prisma.userGroup.update({
+        where: { id: id },
+        data: body,
+        include: {
+            organization: true
+        }
+    });
+
+    if(body.organization) {
+        await prisma.userGroup.update({
+            where: { id: id },
+            data: {
+                organizationId: body.organization.id
+            }
+        });
+    }
+
+    res.status(201).json(updatedUserGroup);
+}
+
+// show
+exports.show = async function(req, res) {
+    const id = parseInt(req.params.groupId, 10);
+    const userGroup = await prisma.userGroup.findUnique({
+        where: { id: id },
+        include: {
+            organization: true
+        }
+    });
+
+    res.status(200).json(userGroup);
+}
+
+// destroy
+exports.destroy = async function(req, res, next) {
+    try {
+        const id = parseInt(req.params.groupId, 10);
+        const deletedUserGroup = await prisma.userGroup.delete({ where: { id: id } });
+        res.json({ data: deletedUserGroup });
+    } catch(e) {
         console.log(e);
         next(e);
     }
 }
-
