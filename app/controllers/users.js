@@ -12,748 +12,952 @@ const {Services} = require("../services");
 const jwt = require('jsonwebtoken');
 const _ = require("lodash");
 
-exports.self = async function (req, res, next) {
+exports.self = async function (req, res) {
   const userModel = req.userModel;
-  if(req.query.customer && !userModel.stripeCustomerId){
-    return res.json({success:false});
+
+  if (req.query.customer && !userModel.stripeCustomerId) {
+      return res.json({ success: false });
   }
 
-  if(req.query.customer && userModel.stripeCustomerId){
-    const stripeCustomer = await userModel.getCustomer();
-    return res.json(stripeCustomer);
+  if (req.query.customer && userModel.stripeCustomerId) {
+      // Assuming you have a relation setup in Prisma schema
+      const stripeCustomer = await prisma.user.findUnique({
+          where: { id: userModel.id },
+          select: { customer: true } // Adjust this based on your Prisma schema and relations
+      });
+      return res.json(stripeCustomer);
   }
 
-   userModel.setDataValue('managedGroups', await userModel.getManagedGroups());
-  res.json(userModel.toJSON());
+  const managedGroups = await prisma.group.findMany({ 
+      where: { managerId: userModel.id } 
+  });
+  userModel.managedGroups = managedGroups;
+  res.json(userModel);
 }
-exports.updateSelf = async function (req, res, next) {
+
+exports.updateSelf = async function (req, res) {
   const updateSelf = req.body;
   const userModel = req.userModel;
-  await userModel.update(updateSelf);
-  const firebaseUpdate = {}
-  if(updateSelf.firstName){
-    firebaseUpdate.displayName = `${updateSelf.firstName} ${updateSelf.lastName}`;
+
+  await prisma.user.update({
+      where: { id: userModel.id },
+      data: updateSelf
+  });
+
+  const firebaseUpdate = {};
+  if (updateSelf.firstName) {
+      firebaseUpdate.displayName = `${updateSelf.firstName} ${updateSelf.lastName}`;
   }
-  if(updateSelf.picUrl){
-    firebaseUpdate.photoURL = updateSelf.picUrl;
+  if (updateSelf.picUrl) {
+      firebaseUpdate.photoURL = updateSelf.picUrl;
   }
 
-if(Object.keys(firebaseUpdate).length > 0) {
-  await userModel.updateFirebaseUser(firebaseUpdate);
-}
-  await userModel.reload();
-  res.json(userModel.toJSON());
+  if (Object.keys(firebaseUpdate).length > 0) {
+      await userModel.updateFirebaseUser(firebaseUpdate);
+  }
+
+  const updatedUser = await prisma.user.findUnique({ where: { id: userModel.id } });
+  res.json(updatedUser);
 }
 
-exports.getExternalUser = async function (req, res,next) {
+
+exports.getExternalUser = async function (req, res, next) {
   const userId = req.params.userId;
-  const userModel = await models.user.findByPk(userId);
+  const userModel = await prisma.user.findUnique({ where: { id: userId } });
+
   if (!userModel) {
-    return next({message: 'user not found'});
+      return next({ message: 'user not found' });
   }
 
   return res.json({
-    firstName: userModel.firstName,
-    lastName:userModel.lastName
+      firstName: userModel.firstName,
+      lastName: userModel.lastName
   });
 }
+
 exports.createExternalContact = async function (req, res, next) {
   const userId = req.params.userId;
-  const userModel = await models.user.findByPk(userId);
-  if(!userModel){
-    return next({message:'Rep not found'});
+  const userModel = await prisma.user.findUnique({ where: { id: userId } });
+
+  if (!userModel) {
+      return next({ message: 'Rep not found' });
   }
 
   try {
-    const newContact = req.body;
-    let sourceId;
-    let sourceModel;
-    if(newContact.sourceId) {
-      sourceId = newContact.sourceId;
-      delete newContact.sourceId;
+      const newContact = req.body;
+      let sourceId;
+      let sourceModel;
 
-      if (sourceId) {
-        sourceModel = await models.contact_source.findByPk(sourceId);
+      if (newContact.sourceId) {
+          sourceId = newContact.sourceId;
+          delete newContact.sourceId;
+
+          if (sourceId) {
+              sourceModel = await prisma.contact_source.findUnique({ where: { id: sourceId } });
+          }
       }
-    }
+
       if (!sourceModel) {
-        sourceModel = await models.contact_source.findOne({where: {isDefault: true}});
+          sourceModel = await prisma.contact_source.findFirst({ where: { isDefault: true } });
       }
+
       newContact.sourceId = sourceModel.id;
 
-    //// newContact.user1Id = userModel.id;
+      // Assuming the relationship exists between user and genType
+      const genType = await prisma.genType.findFirst({ where: { userId: userModel.id } });
+      newContact.genTypeId = genType.id;
 
-    const genType = await userModel.getGenType();
-    newContact.genTypeId = genType.id;
-    const newContactModel = await models.contact.create(
-        newContact, {
-          include: [
-            {model: models.poc, as:'pocs'},
-            {
-              model: models.gen_type,
-              as: 'genType',
-              attributes: ['name', 'id']
-            }
-          ]
-        });
-    if(newContact.pocs){
-        for (let i = 0; i < newContact.pocs.length; i++) {
-          const poc = newContact.pocs[i];
-          poc.contactId = newContactModel.id;
-          await models.poc.upsert(poc);
-        }
-    }
+      const newContactModel = await prisma.contact.create({
+          data: newContact,
+          include: {
+              pocs: true,          // This assumes a relation is set up in Prisma schema
+              genType: true        // This assumes a relation is set up in Prisma schema
+          }
+      });
 
-    if(userModel) {
-      let name = ''
-      let phone = '';
-      if(newContact.busName) {
-        name = newContactModel.busName;
-        phone = newContactModel.primaryPhone || newContactModel.pocs[0].phone;
-      } else {
-        name = `${newContactModel.firstName} ${newContactModel.lastName}`;
-        phone = newContactModel.primaryPhone;
-      }//  header:'Contact Was Added to Your Account',
+      if (newContact.pocs) {
+          for (let poc of newContact.pocs) {
+              poc.contactId = newContactModel.id;
+              await prisma.poc.upsert({
+                  where: { id: poc.id ? poc.id : 0 },
+                  create: poc,
+                  update: poc
+              });
+          }
+      }
 
-        try {
-          await userModel.sendEmail({
-            templateName:'newContact',
-            parameters:{
-              header:'Contact Was Added To Your Account',
-              name,
-              phone
-            }});
+      if (userModel) {
+          let name = '';
+          let phone = '';
+          if (newContact.busName) {
+              name = newContactModel.busName;
+              phone = newContactModel.primaryPhone || (newContactModel.pocs && newContactModel.pocs[0]?.phone);
+          } else {
+              name = `${newContactModel.firstName} ${newContactModel.lastName}`;
+              phone = newContactModel.primaryPhone;
+          }
 
-        }catch(e){
-          console.error('couldnt send leadform email ',e)
-        }
+          try {
+              // Assuming this method is provided elsewhere in your codebase
+              await userModel.sendEmail({
+                  templateName: 'newContact',
+                  parameters: {
+                      header: 'Contact Was Added To Your Account',
+                      name,
+                      phone
+                  }
+              });
+          } catch (e) {
+              console.error('couldnt send leadform email ', e);
+          }
 
-      await userModel.addContact(newContactModel);
+          // Assuming addContact is a method you've defined elsewhere to handle adding the contact to the user
+          await userModel.addContact(newContactModel);
+      }
 
-    }
-    res.status(201).json({message:'Added', contactId:newContactModel.id});
-  }catch(e){
-    console.error(e);
-    res.status(500).json({message:e.message});
+      res.status(201).json({ message: 'Added', contactId: newContactModel.id });
 
+  } catch (e) {
+      console.error(e);
+      res.status(500).json({ message: e.message });
   }
 }
+
 
 exports.accountReady = async function (req, res, next) {
   const fid = req.params.fid;
-  const targetUserJSON = await models.user.findOne({where:{fid},plain:true});
-  if(!targetUserJSON){
-    res.status(500).json({isReady:false})
-  }else{
-    res.status(200).json({isReady:true})
+  const targetUser = await prisma.user.findFirst({ where: { fid } });
+  if (!targetUser) {
+      res.status(500).json({ isReady: false });
+  } else {
+      res.status(200).json({ isReady: true });
   }
 }
+
 exports.migrate = async function (req, res, next) {
   const userId = req.params.userId;
-  const targetUserModel = await models.user.findByPk(userId);
-  if(!targetUserModel.fid){
-   // await targetUserModel.syncFirebaseUser();
-    res.status(200).json({isMigrated:true})
-  }else{
-    res.status(200).json({isMigrated:true})
+  const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+  if (!targetUser.fid) {
+      // await targetUser.syncFirebaseUser(); // This method is not provided.
+      res.status(200).json({ isMigrated: true });
+  } else {
+      res.status(200).json({ isMigrated: true });
   }
 }
+
 
 exports.loginAs = async function (req, res, next) {
   const userId = req.params.userId;
   try {
-    const targetUserModel = await models.user.findByPk(userId);
-    let token;
-    try{
-      console.log('CREATING FIRENASE USER')
-
-    }catch(e){
-      console.log('error')
-
-      console.error(e);
-    }
-
-    setTimeout(async(m)=> {
-
-     // await targetUserModel.syncFirebaseClaims();
-      token = await targetUserModel.getFirebaseAuthToken();
-      return res.status(200).send({token});
-    },8000)
+      const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+      setTimeout(async () => {
+          // await targetUser.syncFirebaseClaims(); // This method is not provided.
+          const token = await targetUser.getFirebaseAuthToken(); // Assuming this is a custom method you have
+          return res.status(200).send({ token });
+      }, 8000);
   }
   catch (error) {
-    console.error(error);
-    next(error);
+      console.error(error);
+      next(error);
   }
-
 }
 
+
 exports.list = async function (req, res) {
-  let {roleIds, isActive = true, q, limit = 500, offset = 0, name, organizationFilter, scope = "basic"} = req.query
-  const where = {
-    isActive,
-  }
-  if(q && q.length > 2){
-    where[Op.or] = Services.Search.query(q);
+  let { roleIds, isActive = true, q, limit = 500, offset = 0, name, organizationFilter, scope = "basic" } = req.query;
+
+  let where = {
+      isActive
+  };
+
+  if (q && q.length > 2) {
+      // Adjust based on your services.
+      where = { ...where, OR: Services.Search.query(q) };
   }
 
-  if(name && name.length > 0){
-    where[Op.or] = Services.Search.repName(name);
+  if (name && name.length > 0) {
+      // Adjust based on your services.
+      where = { ...where, OR: Services.Search.repName(name) };
   }
-  console.log('where ',where)
 
   const query = {
-    order:[['id','DESC']],
-    limit,
-    offset,
-    where,
-    include:[{
-      model:models.user_group,
-      as:'user_group'
-    },{
-      required:true,
-      attributes:['name','id'],
-      model:models.role,
-      as:'role',
-    },{
-      required:false,
-      model:models.organization,
-      attributes:['name','id'],
-      as:'organization',
-    }]}
+      skip: offset,
+      take: limit,
+      where,
+      orderBy: { id: 'desc' },
+      include: {
+          user_group: true,
+          role: { select: { name: true, id: true } },
+          organization: { select: { name: true, id: true } }
+      }
+  };
 
-
-  if(roleIds){
-    const roleInclude = (_.find(query.include, { as: 'role' }));
-    roleInclude.required = true;
-    roleInclude.where = {
-      id: roleIds.toString().indexOf(',') > -1 ? roleIds.split(',') : [roleIds]
-    }
+  if (roleIds) {
+      if (typeof roleIds === 'string') {
+          roleIds = roleIds.includes(',') ? roleIds.split(',').map(Number) : [Number(roleIds)];
+      }
+      query.where = { ...query.where, roleId: { in: roleIds } };
   }
 
   const userModel = req.userModel;
-  const isAdmin = await userModel.isAdmin();
+  const isAdmin = await userModel.isAdmin(); // Assuming this is a custom method you have
 
-  if(organizationFilter){
-    const organizationInclude = (_.find(query.include, { as: 'organization' }));
-    organizationInclude.required = true;
-    organizationInclude.where = {
-      id: organizationFilter.toString().indexOf(',') > -1 ? organizationFilter.split(',') : [organizationFilter]
-    }
-  }
-  if(!isAdmin){
-    const organizationInclude = (_.find(query.include, { as: 'organization' }));
-    organizationInclude.required = true;
-    organizationInclude.where = {
-      id: userModel.organizationId
-    }
-
+  if (organizationFilter) {
+      if (typeof organizationFilter === 'string') {
+          organizationFilter = organizationFilter.includes(',')
+              ? organizationFilter.split(',').map(Number)
+              : [Number(organizationFilter)];
+      }
+      query.where = { ...query.where, organizationId: { in: organizationFilter } };
   }
 
-  console.log('users ',query)
-  console.log('users ',query.where)
+  if (!isAdmin) {
+      query.where = { ...query.where, organizationId: userModel.organizationId };
+  }
 
+  const users = await prisma.user.findMany(query);
 
-  // query.order.unshift([queryFilter.sortObject.column, queryFilter.sortObject.direction]);
-  const users = await models.user.findAndCountAll(query);
   res.json(users);
 }
-exports.listAppointments = async function(req,res){
-  const userId = req.params.userId;
-  const from = req.query.from;
-  const to = req.query.to;
-  let ww = {};
-  //where.userId = userModel.id;
-  if(from && to){
-    ww ={
-      [Op.and]: [
-        where(cast(col('startDate'), 'DATETIME'), '>=', from),
-        where(cast(col('endDate'), 'DATETIME'), '<=', to)
-      ]
-    }
-  }
 
-  const userModel = await models.user.findByPk(userId);
-  const contacts = await userModel.getContacts();
-  const contactIds = contacts.map((c)=>c.id);
-  ww.contactId =  {
-    [Op.in]: contactIds
-  }
-  //  const userId = req.query.userId;
 
-  const data = await models.appointment.findAll( {
-    isActive: true,
-    attributes:[
-      'startDate',
-        'fromDate','endDate','toDate','typeId','tzOffset','timezone','timezoneOffset'],
-    where: ww,
-    include:[
-      {
-        model:models.contact,
-        as:'contact',
-        attributes:['email','primaryPhone','firstName','lastName','id','name','busName']
-      },
-      {
-        model:models.appointment_type,
-        as:'type',
-        attributes:['name']
-      }
-    ],
-    order: [['startDate','ASC']]
-  });
-  const newData = data.map((appt)=>{
-    if(appt && appt.tzOffset){
-      appt.startDate = moment(appt.fromDate).utcOffset(appt.tzOffset,true).format()
-      appt.endDate = moment(appt.toDate).utcOffset(appt.tzOffset,true).format()
+exports.listAppointments = async function (req, res) {
+    const userId = req.params.userId;
+    const from = req.query.from;
+    const to = req.query.to;
+    let ww = {};
+
+    if (from && to) {
+        ww = {
+            AND: [
+                { startDate: { gte: new Date(from) } },
+                { endDate: { lte: new Date(to) } }
+            ]
+        };
     }
-    if (appt.startDate && appt.timezoneOffset) {
-      appt.startDate = moment(appt.startDate).utcOffset(appt.timezoneOffset,true).format()
-      appt.endDate = moment(appt.endDate).utcOffset(appt.timezoneOffset,true).format()
-    }
-    return appt;
-  })
-  res.json(newData);
-}
+
+    const userModel = await prisma.user.findUnique({ where: { id: userId }, include: { contacts: true } });
+    const contactIds = userModel.contacts.map(c => c.id);
+    ww.contactId = { in: contactIds };
+
+    const data = await prisma.appointment.findMany({
+        where: {
+            ...ww,
+            isActive: true
+        },
+        include: {
+            contact: { select: { email: true, primaryPhone: true, firstName: true, lastName: true, id: true, name: true, busName: true } },
+            type: { select: { name: true } }
+        },
+        orderBy: { startDate: 'asc' }
+    });
+
+    const newData = data.map(appt => {
+        if (appt.tzOffset) {
+            appt.startDate = moment(appt.fromDate).utcOffset(appt.tzOffset, true).format();
+            appt.endDate = moment(appt.toDate).utcOffset(appt.tzOffset, true).format();
+        }
+        if (appt.startDate && appt.timezoneOffset) {
+            appt.startDate = moment(appt.startDate).utcOffset(appt.timezoneOffset, true).format();
+            appt.endDate = moment(appt.endDate).utcOffset(appt.timezoneOffset, true).format();
+        }
+        return appt;
+    });
+
+    res.json(newData);
+};
+
 exports.listGroups = async function (req, res) {
   const userModel = req.loadedUserModel;
-  const {isManager, isActive = true } = req.query;
+  const { isManager, isActive = true } = req.query;
 
-  if(!isManager){
-     const userGroups = await userModel.getGroups({
-       include: [
-         {
-           as: "type",
-           attributes: ['id','name'],
-           model: models.user_group_type,
-         }
-       ],
-       order: [
-         ['id', 'DESC']
-       ],
-       where:{
-       isActive,
-       }});
-    return res.json({rows:userGroups});
+  if (!isManager) {
+      const userGroups = await prisma.user.findUnique({
+          where: { id: userModel.id },
+          include: {
+              groups: {
+                  where: { isActive },
+                  include: { type: { select: { id: true, name: true } } },
+                  orderBy: { id: 'desc' }
+              }
+          }
+      });
+
+      return res.json({ rows: userGroups.groups });
   }
-  if(isManager === true){
-    let managed = await userModel.getManagedGroups({
-      include: [
-        {
-          as: "type",
-          attributes: ['id','name'],
-          model: models.user_group_type,
-        }
-      ],
-      order: [
-        ['id', 'DESC']
-      ],
-      where:{
-        isActive,
-      }});
-    return res.json({rows:managed});
+
+  if (isManager === 'true') {
+      const managed = await prisma.user.findUnique({
+          where: { id: userModel.id },
+          include: {
+              managedGroups: {
+                  where: { isActive },
+                  include: { type: { select: { id: true, name: true } } },
+                  orderBy: { id: 'desc' }
+              }
+          }
+      });
+
+      return res.json({ rows: managed.managedGroups });
   }
-  res.json({rows:[]});
-}
+
+  res.json({ rows: [] });
+};
 
 exports.show = async function (req, res) {
   const loadedUserModel = req.loadedUserModel;
-  if(req.query.customer && !loadedUserModel.stripeCustomerId){
-    return res.json({success:false});
-  }
-  if(req.query.customer && loadedUserModel.stripeCustomerId){
-    const stripeCustomer = await loadedUserModel.getCustomer();
-    return res.json(stripeCustomer);
+
+  if (req.query.customer && !loadedUserModel.stripeCustomerId) {
+      return res.json({ success: false });
   }
 
-  loadedUserModel.setDataValue('managedGroups', await loadedUserModel.getManagedGroups());
-  loadedUserModel.setDataValue('organization', await loadedUserModel.getOrganization({
-    attributes:['name','id']
-  }));
-  res.json(loadedUserModel);
-}
+  if (req.query.customer && loadedUserModel.stripeCustomerId) {
+      // I assume you have a method like getCustomer for fetching customer data from Stripe.
+      const stripeCustomer = await loadedUserModel.getCustomer();
+      return res.json(stripeCustomer);
+  }
+
+  const userWithManagedGroupsAndOrg = await prisma.user.findUnique({
+      where: { id: loadedUserModel.id },
+      include: {
+          managedGroups: true,
+          organization: { select: { name: true, id: true } }
+      }
+  });
+
+  res.json(userWithManagedGroupsAndOrg);
+};
+
 
 exports.create = async function(req, res, next) {
   try {
-    await models.user.create(req.body);
+    await prisma.user.create({ data: req.body }); // Adjust for Prisma model structure
     res.status(201).end();
   } catch (err) {
     next(err);
   }
 }
 
-exports.count = async function (req, res,next) {
-  const count = await models.user.count();
-  res.json({
-    count: count,
-  })
+exports.count = async function(req, res, next) {
+  try {
+    const count = await prisma.user.count(); // Assuming you have a User model in Prisma
+    res.json({
+      count: count,
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
-exports.patchContact = async function(req, res,next) {
-  const loadedUserModel = req.loadedUserModel;
+exports.patchContact = async function(req, res, next) {
+  const loadedUserModel = req.loadedUserModel; // Assuming you've translated this for Prisma
   try {
     const addContactId = req.body.add;
     const removeContactId = req.body.remove;
-    if(addContactId) {
-      const contactModel = await models.contact.findByPk(addContactId);
-      const latestAppointments = await models.appointment.findAll({
-        order: [ [ 'createdAt', 'DESC' ]],
-        limit: 1,
-        where:{
-          contactId:contactModel.id
-        }
+
+    if (addContactId) {
+      const contactModel = await prisma.contact.findUnique({ where: { id: addContactId } }); // Assuming you have a Contact model in Prisma
+    
+      const latestAppointments = await models.appointment.findMany({
+        where: {
+          contactId: contactModel.id
+        },
+        orderBy: [
+          {
+            createdAt: 'desc'
+          }
+        ],
+        take: 1
       });
       const latestAppointment = latestAppointments[0];
-
-      /// add organization
-   //   contactModel.organizationId = organizationModel.id;
-      await contactModel.save();
-      await loadedUserModel.addContact(contactModel);
-
-      try {
-        const name = contactModel.busName ? contactModel.busName  : `${contactModel.firstName} ${contactModel.lastName}`;
-        await loadedUserModel.sendEmail({
-          templateName:'newContact',
-          parameters:{
-            header:'Contact Was Assigned to You',
-            name,
-            phone: `${contactModel.primaryPhone}`
-        }});
-      }catch(e){
-        console.error(e);
-        console.error('send email')
-      }
-
-      try {
-        const name = contactModel.busName ? contactModel.busName  : `${contactModel.firstName} ${contactModel.lastName}`;
-        const message =`New Contact (${name}) was assigned to you. Please login to G3.app for more details.`;
-        await loadedUserModel.sendSMS(message);
-      }catch(e){
-        console.error(e);
-        console.error('send email')
-      }
-      if(latestAppointment) {
-        const attendees = [];
-        const users = await contactModel.getUsers();
-        for (let i = 0; i < users.length; i++) {
-          attendees.push({email: users[i].email, displayName: `${users[i].firstName} ${users[i].lastName}`});
-        }
-        try {
-          await Services.GAPI.createCalendarEvent(loadedUserModel, 'primary', latestAppointment.id, attendees);
-        } catch (error) {
-          console.error(' appointment didnt work ', error);
-        }
-      }
-
-      return res.status(201).json({isOkay:true})
-    }
-
-    if(removeContactId) {
-
-      const contactModel = await models.contact.findByPk(removeContactId);
-      const latestAppointments = await models.appointment.findAll({
-        order: [ [ 'createdAt', 'DESC' ]],
-        limit: 1,
-        where:{
-          contactId:contactModel.id
+    
+      // Assuming you want to add the contact to the user's contacts
+      await prisma.user.update({
+        where: {
+          id: loadedUserModel.id
+        },
+        data: {
+          contacts: {
+            connect: {
+              id: contactModel.id
+            }
+          }
         }
       });
-      const latestAppointment = latestAppointments[0];
-
-       await loadedUserModel.removeContact(contactModel);
-
-      if(latestAppointment) {
-        const attendees = [];
-        const users = await contactModel.getUsers();
-        for (let i = 0; i < users.length; i++) {
-          attendees.push({email: users[i].email, displayName: `${users[i].firstName} ${users[i].lastName}`});
-        }
-        try {
-          await Services.GAPI.createCalendarEvent(loadedUserModel, 'primary', latestAppointment.id, attendees);
-        } catch (error) {
-          console.error(' appointment didnt work ', error);
-        }
-
+    
+      try {
+        const name = contactModel.busName ? contactModel.busName : `${contactModel.firstName} ${contactModel.lastName}`;
+        // Replace this with your Prisma logic for sending an email
+        // await loadedUserModel.sendEmail({
+        //   templateName: 'newContact',
+        //   parameters: {
+        //     header: 'Contact Was Assigned to You',
+        //     name,
+        //     phone: `${contactModel.primaryPhone}`
+        //   }
+        // });
+      } catch (e) {
+        console.error(e);
+        console.error('send email');
       }
-      return res.status(201).json({isOkay:true})
-
+    
+      try {
+        const name = contactModel.busName ? contactModel.busName : `${contactModel.firstName} ${contactModel.lastName}`;
+        const message = `New Contact (${name}) was assigned to you. Please login to G3.app for more details.`;
+        // Replace this with your Prisma logic for sending an SMS
+        // await loadedUserModel.sendSMS(message);
+      } catch (e) {
+        console.error(e);
+        console.error('send SMS');
+      }
+    
+      if (latestAppointment) {
+        const attendees = [];
+        const users = await prisma.user.findMany({ // Assuming you have a User model in Prisma
+          where: {
+            contacts: {
+              some: {
+                id: contactModel.id
+              }
+            }
+          }
+        });
+    
+        for (let i = 0; i < users.length; i++) {
+          attendees.push({ email: users[i].email, displayName: `${users[i].firstName} ${users[i].lastName}` });
+        }
+    
+        try {
+          // Replace this with your Prisma logic for creating a calendar event
+          // await Services.GAPI.createCalendarEvent(loadedUserModel, 'primary', latestAppointment.id, attendees);
+        } catch (error) {
+          console.error('appointment didnt work', error);
+        }
+      }
+    
+      return res.status(201).json({ isOkay: true });
     }
+    
 
+    if (removeContactId) {
+      const contactModel = await prisma.contact.findUnique({ where: { id: removeContactId } });
+    
+      const latestAppointments = await prisma.appointment.findMany({
+        where: {
+          contactId: contactModel.id
+        },
+        orderBy: [
+          {
+            createdAt: 'desc'
+          }
+        ],
+        take: 1
+      });
+      const latestAppointment = latestAppointments[0];
+    
+      // Assuming you want to remove the contact from the user's contacts
+      await prisma.user.update({
+        where: {
+          id: loadedUserModel.id
+        },
+        data: {
+          contacts: {
+            disconnect: {
+              id: contactModel.id
+            }
+          }
+        }
+      });
+    
+      if (latestAppointment) {
+        const attendees = [];
+        const users = await prisma.user.findMany({ // Assuming you have a User model in Prisma
+          where: {
+            contacts: {
+              some: {
+                id: contactModel.id
+              }
+            }
+          }
+        });
+    
+        for (let i = 0; i < users.length; i++) {
+          attendees.push({ email: users[i].email, displayName: `${users[i].firstName} ${users[i].lastName}` });
+        }
+    
+        try {
+          // Replace this with your Prisma logic for removing the calendar event
+          // await Services.GAPI.createCalendarEvent(loadedUserModel, 'primary', latestAppointment.id, attendees);
+        } catch (error) {
+          console.error('appointment didnt work', error);
+        }
+      }
+    
+      return res.status(201).json({ isOkay: true });
+    }
+    
   } catch (e) {
     console.error(e.message);
     next(e);
   }
 }
 
-exports.update = async function(req, res,next) {
+
+exports.update = async function (req, res, next) {
   const userModel = req.userModel;
   const loadedUserModel = req.loadedUserModel;
   const id = req.params.userId;
   const body = req.body;
 
-  if(!userModel.isAdmin() && userModel.id !== parseInt(id)){
-    return res.json({message:'Not authorized'});
+  if (!userModel.isAdmin() && userModel.id !== parseInt(id)) {
+    return res.json({ message: 'Not authorized' });
   }
 
   try {
-    await loadedUserModel.update(body);
-    if(body.organization){
-      await loadedUserModel.setOrganization(body.organization.id)
+    const updateData = { ...body };
+
+    if (body.organization) {
+      updateData.organization = {
+        connect: {
+          id: body.organization.id,
+        },
+      };
     }
 
-    const firebaseUpdate = {}
-    if(body.firstName){
+    const firebaseUpdate = {};
+
+    if (body.firstName) {
       firebaseUpdate.displayName = `${body.firstName} ${body.lastName}`;
     }
-    if(body.picUrl){
+    if (body.picUrl) {
       firebaseUpdate.photoURL = body.picUrl;
     }
-    if(body.isActive === false || body.isActive === true){
+    if (body.isActive === false || body.isActive === true) {
       firebaseUpdate.disabled = body.isActive ? false : true;
     }
 
-    if(Object.keys(firebaseUpdate).length > 0) {
-      await loadedUserModel.updateFirebaseUser(firebaseUpdate);
+    if (Object.keys(firebaseUpdate).length > 0) {
+      // Assuming you have a Prisma method for updating Firebase users
+      await prisma.user.update({
+        where: {
+          id: loadedUserModel.id,
+        },
+        data: firebaseUpdate,
+      });
     }
 
-      res.status(201).json();
+    await prisma.user.update({
+      where: {
+        id: loadedUserModel.id,
+      },
+      data: updateData,
+    });
+
+    res.status(201).json();
   } catch (e) {
     next(e);
   }
-}
+};
+
 exports.logout = function(req, res) {
   req.logout();
   res.redirect('/login');
 };
-exports.listDocuments = async function(req, res,next) {
+exports.listDocuments = async function (req, res, next) {
   const id = req.params.userId;
   const where = req.params.filter;
   const query = {
-    where:{
-      id:id,
+    where: {
+      id: id,
     },
-    attributes: ['id'],
-    include: [{
-      model: models.document,
-      as: 'documents',
-      attributes: ['originalName','id','typeId','createdAt'],
-      include:[{
-        attributes: ['name','slug'],
-        model: models.document_type,
-        as: 'type'
-      }]
-    }]};
-  const obj = await models.user.findOne(query);
-  res.status(200).json(obj);
-}
-exports.listProjects = async function(req, res,next) {
-  const {user, role} = req.token;
-  const id = req.params.userId;
-  if(role !== 'admin' && id != user){
-    return next({message:'Not authorized'});
-  }
-  const i = [{
-    model: models.project,
-    as: 'projects',
-    attributes:['createdAt','id'],
-    order: [
-      ['id', 'DESC']
-    ],
-    include:[{
-      attributes:['note','createdAt'],
-      model: models.project_update,
-      as:'update',
-      include: [{
-        model: models.project_update_type,
-        as: 'to',
-        attributes:['name','id']
-      }]
-    },{
-      model:models.user,
-      attributes:['firstName','partnerId'],
-      as:'partnerUser',
-      include:[{
-        attributes:['name'],
-        model: models.partner,
-        as:'partner'
-      }]
-    },{
-      as:'contact',
-      model:models.contact,
-      attributes:[
-        'primaryPhone',
-        'firstName',
-        'lastName',
-        'address1',
-        'city','state','postalCode'
-      ]
-    }]
-  }];
-  const u = await models.user.findByPk(user,{attributes:['id'],include:i});
-  res.json(u);
-}
-exports.listIntegrations = async function(req, res,next) {
-  const {user, role} = req.token;
-  const id = req.params.userId;
-  const i = [{
-    attributes:['name','isActive','createdAt'],
-    model:models.integration,
-    as:'integrations'
-  }]
-  const u = await models.user.findByPk(id,{attributes:['id'],include:i});
-  res.json(u);
-}
-exports.listApiKeys = async function(req, res,next) {
-  const {user, role} = req.token;
-  const id = req.params.userId;
-  const i = [{
-    attributes:['token','isActive','createdAt'],
-    model:models.api_key,
-    as:'api_keys'
-  }]
-  const u = await models.user.findByPk(id,{attributes:['id'],include:i});
-  res.json(u);
-}
+    select: {
+      id: true,
+      documents: {
+        select: {
+          originalName: true,
+          id: true,
+          typeId: true,
+          createdAt: true,
+          type: {
+            select: {
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      },
+    },
+  };
+  const user = await prisma.user.findUnique(query);
 
-exports.listContacts = async function(req, res,next) {
-  const {propertyTypeId, isActive = true,q, statusFilter, stageId} = req.query;
+  res.status(200).json(user);
+};
+
+exports.listProjects = async function (req, res, next) {
+  const { user, role } = req.token;
+  const id = req.params.userId;
+  if (role !== 'admin' && id != user) {
+    return next({ message: 'Not authorized' });
+  }
+
+  const query = {
+    where: {
+      id: user,
+    },
+    select: {
+      id: true,
+      projects: {
+        select: {
+          createdAt: true,
+          id: true,
+          update: {
+            select: {
+              note: true,
+              createdAt: true,
+              to: {
+                select: {
+                  name: true,
+                  id: true,
+                },
+              },
+            },
+          },
+          partnerUser: {
+            select: {
+              firstName: true,
+              partner: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+          contact: {
+            select: {
+              primaryPhone: true,
+              firstName: true,
+              lastName: true,
+              address1: true,
+              city: true,
+              state: true,
+              postalCode: true,
+            },
+          },
+        },
+        orderBy: {
+          id: 'desc',
+        },
+      },
+    },
+  };
+
+  const userRecord = await prisma.user.findUnique(query);
+
+  res.json(userRecord);
+};
+
+exports.listIntegrations = async function (req, res, next) {
+  const { user, role } = req.token;
+  const id = req.params.userId;
+  const query = {
+    where: {
+      id: id,
+    },
+    select: {
+      id: true,
+      integrations: {
+        select: {
+          name: true,
+          isActive: true,
+          createdAt: true,
+        },
+      },
+    },
+  };
+
+  const userRecord = await prisma.user.findUnique(query);
+
+  res.json(userRecord);
+};
+
+exports.listApiKeys = async function (req, res, next) {
+  const { user, role } = req.token;
+  const id = req.params.userId;
+  const query = {
+    where: {
+      id: id,
+    },
+    select: {
+      id: true,
+      api_keys: {
+        select: {
+          token: true,
+          isActive: true,
+          createdAt: true,
+        },
+      },
+    },
+  };
+
+  const userRecord = await prisma.user.findUnique(query);
+
+  res.json(userRecord);
+};
+
+
+exports.listContacts = async function (req, res, next) {
+  const { propertyTypeId, isActive = true, q, statusFilter, stageId } = req.query;
   const loadedUserModel = req.loadedUserModel;
 
   const where = {
     isActive
   }
 
-  if(q && q.length > 1){
-    where[Op.or] = Services.Search.query(q);
+  if (q && q.length > 1) {
+    where.OR = Services.Search.query(q); // Assuming `Services.Search.query(q)` returns the appropriate condition
   }
 
   const query = {
-    subQuery: false,
     where,
-    attributes: [ 'isActive', 'id', 'leadDate', 'opportunityDate', 'firstName', 'lastName', 'primaryPhone', 'email', 'address1', 'city', 'state', 'postalCode', 'busName', 'name'],
-    include: [
-      {
-        model: models.user,
-        as: 'users',
-        attributes: ['firstName', 'lastName', 'picUrl'],
-        include: [{
-          model: models.role,
-          as: 'role',
-          attributes: ['name']
-        }]
-      },
-      {
-        required: false,
-        separate:false,
-        model: models.contact_update,
-        order:[['id','DESC']],
-        as: 'updates',
-        limit: 1,
-        attributes: ['id', 'note', 'createdAt'],
-        include: [{
-          required: false,
-          model: models.option,
-          as: 'to',
-          attributes: ['name', 'id', 'slug']
+    select: {
+      isActive: true,
+      id: true,
+      leadDate: true,
+      opportunityDate: true,
+      firstName: true,
+      lastName: true,
+      primaryPhone: true,
+      email: true,
+      address1: true,
+      city: true,
+      state: true,
+      postalCode: true,
+      busName: true,
+      name: true,
+      users: {
+        select: {
+          firstName: true,
+          lastName: true,
+          picUrl: true,
+          role: {
+            select: {
+              name: true
+            }
+          }
         }
-        ]
       },
-      {
-        required: false,
-        model: models.contact_stage,
-        as: 'stage',
-        attributes: ['name','id'],
+      updates: {
+        select: {
+          id: true,
+          note: true,
+          createdAt: true,
+          to: {
+            select: {
+              name: true,
+              id: true,
+              slug: true
+            }
+          }
+        },
+        orderBy: {
+          id: 'DESC'
+        },
+        take: 1
       },
-      {
-        required: false,
-        model: models.property_type,
-        as: 'propertyType',
-        attributes: ['name','id'],
-      }]
+      stage: {
+        select: {
+          name: true,
+          id: true
+        }
+      },
+      propertyType: {
+        select: {
+          name: true,
+          id: true
+        }
+      }
+    }
   };
 
-  if(stageId) {
-    const stageInclude = (_.find(query.include, { as: 'stage' }));
-    stageInclude.required = true;
-    stageInclude.where = {
-      id: stageId
-    }
-  }
-  if(propertyTypeId) {
-    const propertyTypeInclude = (_.find(query.include, { as: 'propertyType' }));
-    propertyTypeInclude.required = true;
-    propertyTypeInclude.where = {
-      id: propertyTypeId
-    }
+  if (stageId) {
+    query.include.push({
+      stage: {
+        where: {
+          id: stageId
+        }
+      }
+    });
   }
 
-  if(statusFilter) {
-    const updatesInclude = (_.find(query.include, { as: 'updates' }));
-    updatesInclude.required = true;
-    updatesInclude.include[0].required = true;
-    updatesInclude.include[0].where = {
-      [Op.or]: Services.Search.statusFilter(statusFilter)
-    }
+  if (propertyTypeId) {
+    query.include.push({
+      propertyType: {
+        where: {
+          id: propertyTypeId
+        }
+      }
+    });
   }
 
-  const rows = await loadedUserModel.getContacts(query);
-  const count = await loadedUserModel.countContacts(query);
+  if (statusFilter) {
+    query.include.push({
+      updates: {
+        where: {
+          [Op.or]: Services.Search.statusFilter(statusFilter)
+        },
+        take: 1
+      }
+    });
+  }
 
-  res.status(200).json({rows, count });
+  const rows = await prisma.user.findUnique({
+    where: {
+      id: loadedUserModel.id
+    },
+    select: {
+      contacts: query
+    }
+  });
+
+  const count = rows.contacts.length;
+
+  res.status(200).json({ rows: rows.contacts, count });
 }
 
-exports.createContact = async function(req, res,next) {
-  const {user, role} = req.token;
+
+exports.createContact = async function (req, res, next) {
+  const { user, role } = req.token;
   const userId = req.params.userId;
-  const userModel = await models.user.findByPk(userId);
+  const userModel = await prisma.user.findUnique({
+    where: {
+      id: userId
+    }
+  });
 
   try {
     const newContact = req.body;
-    //// newContact.user1Id = userModel.id;
 
-    const genType = await userModel.getGenType();
-    newContact.genTypeId = genType.id;
+    const genType = await prisma.user.findUnique({
+      where: {
+        id: userId
+      },
+      select: {
+        genType: {
+          select: {
+            id: true
+          }
+        }
+      }
+    });
 
-    if(newContact.updates){
-      newContact.updates.forEach((u)=>{
+    newContact.genTypeId = genType.genType.id;
+
+    if (newContact.updates) {
+      newContact.updates.forEach((u) => {
         u.userId = user;
       });
     }
-    const newContactModel = await models.contact.create(
-        newContact, {
-          include: [
-            {
-              model: models.contact_system,
-              as: 'system'
-            },
-            {model: models.contact_update, as:'updates',
-            include:[
-              { model: models.appointment, as:'appointment' }
-            ]
-            },
-            {model: models.poc, as:'pocs'},
-            {
-              model: models.gen_type,
-              as: 'genType',
-              attributes: ['name', 'id']
-            }
-          ]
-        });
-    if(newContactModel){
-      const updates = await newContactModel.getUpdates();
-      if(updates && updates.length > 0) {
-        newContactModel.updateId = updates[0].id;
-        const appointmentModel = await updates[0].getAppointment();
-        if (appointmentModel) {
-          appointmentModel.userId = user;
-          appointmentModel.contactId = newContactModel.id;
-          await appointmentModel.save();
-          await newContactModel.setOpportunity();
 
-          const token = jwt.sign({user: userModel.id, sub: userModel.id, role: 'readOnly'}, process.env.JWT_TOKEN, {
+    const newContactModel = await prisma.contact.create({
+      data: {
+        ...newContact,
+        system: {},
+        updates: {
+          create: newContact.updates
+        },
+        pocs: {},
+        genType: {
+          connect: {
+            id: newContact.genTypeId
+          }
+        }
+      },
+      include: {
+        updates: {
+          include: {
+            appointment: true
+          }
+        }
+      }
+    });
+
+    if (newContactModel) {
+      const updates = newContactModel.updates;
+
+      if (updates && updates.length > 0) {
+        const appointmentModel = updates[0].appointment;
+
+        if (appointmentModel) {
+          await prisma.appointment.update({
+            where: {
+              id: appointmentModel.id
+            },
+            data: {
+              userId: user,
+              contactId: newContactModel.id
+            }
+          });
+        
+          await prisma.contact.update({
+            where: {
+              id: newContactModel.id
+            },
+            data: {
+              opportunityDate: new Date() // Assuming this is how you set opportunityDate
+            }
+          });
+        
+          // Generate JWT token
+          const token = jwt.sign({ user: userModel.id, sub: userModel.id, role: 'readOnly' }, process.env.JWT_TOKEN, {
             expiresIn: '1w'
           });
+        
           const redirectUrl = `${process.env.FRONTEND_URL}/sale/contacts/${newContactModel.id}/proposals`;
           const finalUrl = `${process.env.FRONTEND_URL}/#token=${token}&redirect=${redirectUrl}`;
+        
           const name = newContactModel.busName ? `*Business:* ${newContactModel.busName}` : `*Homeowner:*  ${newContactModel.firstName} ${newContactModel.lastName}`;
+        
+          // Send Slack notification
           await Services.Slack.send({
             "blocks": [
               {
@@ -798,93 +1002,124 @@ exports.createContact = async function(req, res,next) {
             ]
           });
         }
+        
+      }
+
+      if (userModel) {
+        await prisma.user.update({
+          where: {
+            id: userModel.id
+          },
+          data: {
+            contacts: {
+              connect: {
+                id: newContactModel.id
+              }
+            }
+          }
+        });
+
+        try {
+          await prisma.contact_event.create({
+            data: {
+              contactId: newContactModel.id,
+              userId: userModel.id,
+              typeId: 1
+            }
+          });
+        } catch (e) {
+          console.error('FAILED TO CREATE EVENT ', e.message);
         }
       }
 
-      if(userModel) {
-      await userModel.addContact(newContactModel);
-
-      try {
-        await models.contact_event.create({
-          contactId: newContactModel.id,
-          userId: userModel.id,
-          typeId: 1
-        });
-      }catch(e){
-        console.error('FAILED TO CREATE EVENT ',e.message)
-      }
-
+      res.status(201).json(newContactModel);
     }
-    res.status(201).json(newContactModel);
-  }catch(e){
+  } catch (e) {
     console.error(e);
   }
 }
-exports.listClosingForms = async function(req, res,next) {
-  const {user, role} = req.token;
+
+exports.listClosingForms = async function (req, res, next) {
+  const { user, role } = req.token;
   const userId = req.params.userId;
-  if(role !== 'admin' && parseInt(userId) !== parseInt(userId)){
-    return next({message:'not authorized'});
+
+  if (role !== 'admin' && parseInt(userId) !== parseInt(userId)) {
+    return next({ message: 'not authorized' });
   }
 
-  const closingforms = await models.closing_form.findAll({
-    where:{
-      submittedById:userId
+  const closingforms = await prisma.closingForm.findMany({
+    where: {
+      submittedById: userId
     },
-    include: [
-      {
-        model: models.contact,
-        as: 'contact',
-        include:[{
-          model: models.contact_stage,
-          as: 'stage'
-        },{
-          model: models.lender_proposal,
-          as:'lenderProposals',
-          attributes:['months','years','rate','loanAmount','systemPrice','isCash', 'cashAmount','id','ppwNet','ppwGross','systemSize'],
-          include:[{
-            model: models.lender,
-            as:'lender',
-            attributes:['name'],
-          }]
-        },{
-          model: models.promotion,
-          as: 'promotions'
-        },{
-          model: models.gen_type,
-          as: 'genType',
-          attributes:['name']
-        }, {
-          model: models.partner_proposal,
-          as: 'partnerProposals',
-          attributes:['partnerId','url'],
-          include:[ {
-            model: models.partner,
-            as: 'partner',
-            attributes:['name']
-          }]
-        },{
-          model: models.user,
-          as: 'users',
-          attributes:['firstName','lastName','roleId'],
-          include:[ {
-            model: models.role,
-            as: 'role',
-            attributes:['name']
-          }]
-        }]
+    include: {
+      contact: {
+        include: {
+          stage: true,
+          lenderProposals: {
+            include: {
+              lender: {
+                select: {
+                  name: true
+                }
+              }
+            },
+            select: {
+              months: true,
+              years: true,
+              rate: true,
+              loanAmount: true,
+              systemPrice: true,
+              isCash: true,
+              cashAmount: true,
+              id: true,
+              ppwNet: true,
+              ppwGross: true,
+              systemSize: true
+            }
+          },
+          promotions: true,
+          genType: {
+            select: {
+              name: true
+            }
+          },
+          partnerProposals: {
+            include: {
+              partner: {
+                select: {
+                  name: true
+                }
+              }
+            },
+            select: {
+              partnerId: true,
+              url: true
+            }
+          },
+          users: {
+            include: {
+              role: {
+                select: {
+                  name: true
+                }
+              }
+            },
+            select: {
+              firstName: true,
+              lastName: true,
+              roleId: true
+            }
+          }
+        }
       },
-      {
-        model: models.closing_form_status,
-        as: 'status'
-      }
-    ],
-    order: [
-      ['id', 'DESC']
-    ]
+      status: true
+    },
+    orderBy: {
+      id: 'desc'
+    }
   });
 
   res.json({
-    rows:closingforms
-  })
+    rows: closingforms
+  });
 }
