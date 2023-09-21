@@ -6,6 +6,11 @@ exports.list = async function (req, res, next) {
     res.json(obj_array);
 };
 
+exports.listUsers = async function (req, res, next) {
+    // const obj_array = await prisma.userGroup.findAll();
+    // res.json(obj_array);
+}
+
 exports.show = async function (req, res, next) {
     const id = parseInt(req.params.id);
     const obj_array = await prisma.userGroup.findUnique({
