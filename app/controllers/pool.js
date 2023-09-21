@@ -11,7 +11,11 @@ exports.createContact = async function (req, res, next) {
         const userModel = req.userModel;
         const newContact = req.body;
 
-        const genType = await userModel.getGenType();
+        const genType = await prisma.userModel.findUnique({
+            where: { id: userModel.id },
+            select: { genType: true }
+        });
+
         if (!genType) {
             next({ message: 'Missing GenType' });
             return;
@@ -19,31 +23,17 @@ exports.createContact = async function (req, res, next) {
 
         newContact.genTypeId = genType.id;
 
-        const newContactModel = await models.contact.create(
-            newContact, {
-                include: [
-                    {
-                        model: models.meter,
-                        as: 'meters'
-                    },
-                    {
-                        model: models.poc,
-                        as: 'pocs'
-                    },
-                    {
-                        model: models.contact_system,
-                        as: 'system'
-                    },
-                    {
-                        model: models.gen_type,
-                        as: 'genType',
-                        attributes: ['name', 'id']
-                    }, {
-                        model: models.contact_source,
-                        as: 'source'
-                    }
-                ]
-            });
+        const newContactModel = await prisma.contact.create({
+            data: newContact,
+            include: {
+                meters: true,
+                pocs: true,
+                system: true,
+                genType: { select: { name: true, id: true } },
+                source: true
+            }
+        });
+
         return res.status(201).json(newContactModel);
     } catch (e) {
         next(e);
@@ -51,144 +41,125 @@ exports.createContact = async function (req, res, next) {
 }
 
 
+
 exports.listContacts = async function (req, res, next) {
-    const { source, propertyTypeId = 1, isActive=true, q, limit=1000, offset=0, sort } = req.query;
+    const { source, propertyTypeId = 1, isActive = true, q, limit = 1000, offset = 0, sort } = req.query;
     const userModel = req.userModel;
-    var sortingOrder;
-
-
+    const prisma = new Prisma(); // instantiate prisma client, assuming you have it set up properly
 
     const where = {
         isActive,
-        organizationId :{
-            [Op.is]: null
-        }
-    }
-
+        organizationId: null
+    };
 
     if (q && q.length > 1) {
-        where[Op.or] = Services.Search.query(q, propertyTypeId);
+        where.OR = Services.Search.query(q, propertyTypeId); // This line may need adjustment depending on how Services.Search.query() is implemented
     }
 
-
-
-
-    const query = {
-        limit,
-        offset,
-        order: [
-            ['id', 'DESC'] // Like: ORDER BY id DESC
-        ],
-        attributes: [
-            'utilityProvider',
-            'busName',
-            'isActive',
-            'createdAt',
-            'id',
-            'name',
-            'firstName',
-            'lastName',
-            'organizationId',
-            'primaryPhone', 'email', 'city', 'state', 'postalCode', 'address1'],
-        include: [{
-            required: false,
-            model: models.contact_source,
-            as: 'source',
-            attributes: [
-                'name', 'id'
-            ]
-        },{
-                required: false,
-                model: models.property_type,
-                as: 'propertyType',
-                attributes: [
-                    'name', 'id'
-                ]
+    const select = {
+        utilityProvider: true,
+        busName: true,
+        isActive: true,
+        createdAt: true,
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        organizationId: true,
+        primaryPhone: true,
+        email: true,
+        city: true,
+        state: true,
+        postalCode: true,
+        address1: true,
+        source: {
+            select: {
+                name: true,
+                id: true
             }
-        ],
-        where
-    }
+        },
+        propertyType: {
+            select: {
+                name: true,
+                id: true
+            }
+        }
+    };
 
-
-
-    /// add Sort
-    // query.order.unshift([queryFilter.sortObject.column, queryFilter.sortObject.direction]);
-
-
+    const orderBy = {
+        id: 'desc' // Using Prisma's syntax
+    };
 
     if (propertyTypeId) {
-        const propertyTypeInclude = (_.find(query.include, { as: 'propertyType' }));
-        propertyTypeInclude.required = true;
-        propertyTypeInclude.where = {
-            id: propertyTypeId
-        }
+        where.propertyTypeId = propertyTypeId; // Assuming direct relationship
     }
-
-
-
-
 
     if (source) {
-        const sourceInclude = (_.find(query.include, { as: 'source' }));
-        sourceInclude.required = true;
-        sourceInclude.where = {
-            slug: source
-        }
+        where.source = { slug: source }; // Assuming 'slug' is the field we want to filter by
     }
 
-
-    const isAdmin = await userModel.isAdmin();
-    console.log('is admin ',isAdmin);
+    const isAdmin = await userModel.isAdmin(); // This method call remains unchanged
+    console.log('is admin ', isAdmin);
 
     if (isAdmin) {
-        // tslint:disable-next-line:no-shadowed-variable
-        const results = await models.contact.findAll(query);
-        res.json({ rows:results, count:1000 });
+        const results = await prisma.contact.findMany({
+            where,
+            select,
+            orderBy,
+            skip: offset,
+            take: limit
+        });
+        res.json({ rows: results, count: 1000 }); // Hardcoded count of 1000 for now
         return;
     }
 
-    const rows = await userModel.getContacts(query);
-    const count = await userModel.countContacts(query)
+    // If not admin
+    // I'm assuming you will have similar methods in Prisma's setup as you had with Sequelize for the userModel. Adjust accordingly.
+    const rows = await userModel.getContacts({ where, select, orderBy, skip: offset, take: limit });
+    const count = await userModel.countContacts({ where });
     res.json({ rows, count });
     return;
-}
+};
+
 
 exports.listGroups = async function (req, res) {
-    const contactId = req.params.contactId;
-    const query = {
-        include: [{
-            model: models.user_group,
-            as: 'groups',
-            attributes: ['name', 'id'],
-            where: {
-                isActive: true
-            },
-            include: [{
-                model: models.user_group_type,
-                as: 'type',
-                attributes: ['name', 'id'],
-                where: {
-                    isActive: true
-                }
-            }]
-        }]
-    };
+    const contactId = parseInt(req.params.contactId, 10);
 
-    const results = await models.contact.findByPk(contactId, query);
+    const results = await prisma.contact.findUnique({
+        where: { id: contactId },
+        select: {
+            groups: {
+                select: {
+                    name: true,
+                    id: true,
+                    type: {
+                        select: {
+                            name: true,
+                            id: true
+                        }
+                    }
+                },
+                where: { isActive: true }
+            }
+        }
+    });
+
     let rows = [];
     if (results) {
         rows = results.groups;
     }
-    res.json({ rows, count: 100 });
+    res.json({ rows, count: 100 }); // Assuming count is hardcoded to 100 for now
 }
+
 
 
 exports.count = async function (req, res) {
-    const count = await models.contact.count();
+    const count = await prisma.contact.count();
     res.json({
         count: count,
-    })
+    });
 }
+
 
 
 
@@ -210,77 +181,131 @@ exports.create = async function (req, res, next) {
 
         newContact.genTypeId = genType.id;
 
-        const newContactModel = await models.contact.create(
-            newContact, {
-                include: [
-                    {
-                        model: models.meter,
-                        as: 'meters'
-                    },
-                    {
-                        model: models.contact_update,
-                        as: 'updates',
-                        include: [
-                            {
-                                model: models.appointment,
-                                as: 'appointment',
-                                include: [
-                                    {
-                                        model: models.appointment_type,
-                                        as: 'type'
-                                    }
-                                ]
-                            }
-                        ]
-                    },
-                    {
-                        model: models.poc,
-                        as: 'pocs'
-                    },
-                    {
-                        model: models.contact_system,
-                        as: 'system'
-                    },
-                    {
-                        model: models.gen_type,
-                        as: 'genType',
-                        attributes: ['name', 'id']
-                    }, {
-                        model: models.contact_source,
-                        as: 'source'
+        const newContactData = {
+            ...newContact,
+            genTypeId: genType.id,
+            meters: {
+                create: newContact.meters
+            },
+            updates: {
+                create: newContact.updates.map(update => ({
+                    ...update,
+                    appointment: {
+                        create: {
+                            ...update.appointment,
+                            typeId: update.appointment.typeId
+                        }
                     }
-                ]
-            });
+                }))
+            },
+            pocs: {
+                create: newContact.pocs
+            },
+            system: {
+                create: newContact.system
+            },
+            genType: {
+                connect: {
+                    id: newContact.genTypeId
+                }
+            },
+            source: {
+                connect: {
+                    id: newContact.sourceId
+                }
+            }
+        };
 
-        await userModel.addContact(newContactModel);
-        if(organizationModel) {
-            await organizationModel.addContact(newContactModel);
+        const newContactModel = await prisma.contact.create({
+            data: newContactData,
+            include: {
+                meters: true,
+                updates: {
+                    include: {
+                        appointment: {
+                            include: {
+                                type: true
+                            }
+                        }
+                    }
+                },
+                pocs: true,
+                system: true,
+                genType: true,
+                source: true
+            }
+        });
+
+        await prisma.user.update({
+            where: { id: userModel.id },
+            data: {
+                contacts: {
+                    connect: { id: newContactModel.id }
+                }
+            }
+        });
+
+        if (organizationModel) {
+            await prisma.organization.update({
+                where: { id: organizationModel.id },
+                data: {
+                    contacts: {
+                        connect: { id: newContactModel.id }
+                    }
+                }
+            });
         }
+
         if (newContactModel.updates && newContactModel.updates.length > 0) {
             const [updateModel] = newContactModel.updates;
-            await userModel.addUpdates(updateModel);
 
-            /// we have an opportunity
-            if(updateModel.appointment){
+            await prisma.user.update({
+                where: { id: userModel.id },
+                data: {
+                    updates: {
+                        connect: { id: updateModel.id }
+                    }
+                }
+            });
+
+            if (updateModel.appointment) {
                 const appointmentModel = updateModel.appointment;
-                await userModel.addAppointment(appointmentModel);
-                await newContactModel.addAppointment(appointmentModel);
+
+                await prisma.user.update({
+                    where: { id: userModel.id },
+                    data: {
+                        appointments: {
+                            connect: { id: appointmentModel.id }
+                        }
+                    }
+                });
+
+                await prisma.contact.update({
+                    where: { id: newContactModel.id },
+                    data: {
+                        appointments: {
+                            connect: { id: appointmentModel.id }
+                        }
+                    }
+                });
+
                 await newContactModel.setOpportunity();
 
                 try {
                     await newContactModel.requestDesignForUser(userModel.id);
-                }catch(e){
+                } catch (e) {
                     console.error(e);
                 }
-
             }
         }
 
         return res.status(201).json(newContactModel);
+
     } catch (e) {
         next(e);
     }
-}
+};
+
 
 
 
@@ -294,42 +319,47 @@ exports.createProject = async function (req, res, next) {
         const contactModel = req.loadedContactModel;
         const project = req.body;
 
-        project.boardId = 1;
-        project.boardId = 1;
+        project.boardId = 1; // Assuming this is intentionally set twice
         project.projectLaneId = 1;
         project.ownerId = userModel.id;
         project.contactId = contactModel.id;
 
-        const newProjectModel = await models.project.create(project);
-        contactModel.projectId = newProjectModel.id;
-        await contactModel.save();
+        const newProjectModel = await prisma.project.create({ data: project });
+
+        await prisma.contact.update({
+            where: { id: contactModel.id },
+            data: { projectId: newProjectModel.id }
+        });
+
         return res.status(201).json(newProjectModel);
     } catch (e) {
         next(e);
     }
-}
-
-
-/**
- * delete a project
- */
-
+};
 exports.deleteProject = async function (req, res, next) {
     try {
         const userModel = req.userModel;
         const contactModel = req.loadedContactModel;
-        const projectModel = await models.project.findByPk(contactModel.projectId);
-        const destroyed = await projectModel.destroy();
-        contactModel.projectId = null;
-        await contactModel.save();
-        return res.status(201).json(destroyed);
+
+        await prisma.project.delete({
+            where: { id: contactModel.projectId }
+        });
+
+        await prisma.contact.update({
+            where: { id: contactModel.id },
+            data: { projectId: null }
+        });
+
+        return res.status(201).json({ message: 'Project deleted successfully' });
     } catch (e) {
         next(e);
     }
-}
+};
+
 
 
 //create_update
+
 exports.createUpdate = async function (req, res, next) {
     const userModel = req.userModel;
     const contactModel = req.loadedContactModel;
@@ -339,19 +369,22 @@ exports.createUpdate = async function (req, res, next) {
         return res.json({});
     }
 
-    const statusUpdateModel = await models.option.findOne({where:{id:newUpdate.toId, isActive:true}});
+    const statusUpdateModel = await prisma.option.findFirst({
+        where: {
+            id: newUpdate.toId,
+            isActive: true
+        }
+    });
 
-    if(!statusUpdateModel){
-        return next({message:`Status ${newUpdate.toId} not found`});
+    if (!statusUpdateModel) {
+        return next({ message: `Status ${newUpdate.toId} not found` });
     }
 
-
     if (newUpdate.appointment && newUpdate.appointment.startDate) {
-
         const timezone = newUpdate.appointment.timezone;
         const appointment = newUpdate.appointment;
         const typeId = appointment.typeId;
-        const appointmentTypeModel = await models.appointment_type.findOne({
+        const appointmentTypeModel = await prisma.appointment_type.findFirst({
             where: {
                 id: typeId,
                 isActive: true
@@ -366,884 +399,970 @@ exports.createUpdate = async function (req, res, next) {
             typeId: appointmentTypeModel.id,
             contactId: newUpdate.contactId,
             userId: userModel.id
-        }
-        const newAppointmentModel = await models.appointment.create(newAppointment);
+        };
+
+        const newAppointmentModel = await prisma.appointment.create({ data: newAppointment });
         newUpdate.appointmentId = newAppointmentModel.id;
 
-        await contactModel.addAppointment(newAppointmentModel);
-        await userModel.addAppointment(newAppointmentModel);
+        // Assuming addAppointment methods add a relational link. We will now link them using Prisma.
+        await prisma.contact.update({
+            where: { id: contactModel.id },
+            data: { appointments: { connect: { id: newAppointmentModel.id } } }
+        });
 
+        await prisma.user.update({
+            where: { id: userModel.id },
+            data: { appointments: { connect: { id: newAppointmentModel.id } } }
+        });
     }
 
     newUpdate.contactId = contactModel.id;
-    const newUpdateModel = await models.contact_update.create(newUpdate);
-    await contactModel.addUpdates(newUpdateModel);
-    await userModel.addUpdates(newUpdateModel);
+    const newUpdateModel = await prisma.contact_update.create({ data: newUpdate });
 
+    // Associate the new update with the contact and user.
+    await prisma.contact.update({
+        where: { id: contactModel.id },
+        data: { updates: { connect: { id: newUpdateModel.id } } }
+    });
+    await prisma.user.update({
+        where: { id: userModel.id },
+        data: { updates: { connect: { id: newUpdateModel.id } } }
+    });
 
-    const to = await newUpdateModel.getTo();
-    const slug = to.get('slug');
+    const to = await prisma.option.findFirst({
+        where: { id: newUpdateModel.toId },
+        select: { slug: true }
+    });
 
+    const slug = to.slug;
 
-    if (slug.indexOf('appointment-set') > -1 || slug.indexOf('reschedule') > -1) {
+    if (slug.includes('appointment-set') || slug.includes('reschedule')) {
         const attendees = [];
-        const users = await contactModel.getUsers();
-        for (let i = 0; i < users.length; i++) {
-            attendees.push({ email: users[i].email, displayName: `${users[i].firstName} ${users[i].lastName}` });
+        const users = await prisma.contact.findUnique({
+            where: { id: contactModel.id },
+            include: { users: true }
+        }).users;
+
+        for (let user of users) {
+            attendees.push({ email: user.email, displayName: `${user.firstName} ${user.lastName}` });
         }
         try {
             await Services.GAPI.createCalendarEvent(userModel.id, 'primary', newUpdate.appointmentId, attendees);
         } catch (error) {
-            console.error(' appointment didnt work ', error);
+            console.error('Appointment creation failed:', error);
         }
     }
 
-
-
-    if (slug.indexOf('drop') > -1) {
+    if (slug.includes('drop')) {
         try {
-            await contactModel.setDrop();
+            await prisma.contact.update({
+                where: { id: contactModel.id },
+                data: { /* appropriate attributes to indicate drop */ }
+            });
+
             if (contactModel.sourceId === 5 && newUpdate.note && newUpdate.note.length > 4) {
-                await contactModel.returnLead(newUpdate.note);
+                await contactModel.returnLead(newUpdate.note);  // Assuming this remains a custom function
             }
         } catch (e) {
             console.error(e);
         }
     }
 
-    if (slug.indexOf('-lead') > -1) {
-        await contactModel.setLead();
+    if (slug.includes('-lead')) {
+        await prisma.contact.update({
+            where: { id: contactModel.id },
+            data: { /* appropriate attributes to indicate lead */ }
+        });
     }
-    if (slug.indexOf('request-new-redesign') > -1) {
-        await contactModel.requestDesignForUser(userModel.id);
+    if (slug.includes('request-new-redesign')) {
+        await contactModel.requestDesignForUser(userModel.id);  // Assuming this remains a custom function
     }
-    if (slug.indexOf('appointment-set') > -1) {
-        await contactModel.requestDesignForUser(userModel.id);
-        await contactModel.setOpportunity();
+    if (slug.includes('appointment-set')) {
+        await contactModel.requestDesignForUser(userModel.id);  // Assuming this remains a custom function
+        await prisma.contact.update({
+            where: { id: contactModel.id },
+            data: { /* appropriate attributes to indicate opportunity */ }
+        });
     }
 
-    if (slug.indexOf('close') > -1) {
-        await contactModel.setClosed();
+    if (slug.includes('close')) {
+        await prisma.contact.update({
+            where: { id: contactModel.id },
+            data: { /* appropriate attributes to indicate closed status */ }
+        });
     }
 
-
-    await contactModel.save();
     res.json(newUpdate);
 
-}
+};
 
+
+// createClosingForm
 exports.createClosingForm = async function (req, res, next) {
-
     const body = req.body;
-    const contactId = req.params.contactId;
-    const contactModel = req.loadedContactModel;
 
     if (body.id) {
-        const closingFormUpdateModel = await models.closing_form.findByPk(body.id);
-
-        await closingFormUpdateModel.update(body, {
-            include: [
-                {
-                    model: models.closing_form_update,
-                    as: 'updates',
-                    include: [{
-                        model: models.closing_form_update_type,
-                        as: 'type',
-                    }]
-                }]
+        const closingFormUpdateModel = await prisma.closing_form.update({
+            where: { id: body.id },
+            data: body, // Assuming direct update is possible; you might need to adjust the shape of 'body'
+            include: {
+                updates: {
+                    include: {
+                        type: true
+                    }
+                }
+            }
         });
         res.json(closingFormUpdateModel);
-        return
+        return;
     }
-    const partnerProposalModels = await contactModel.getPartnerProposals({
+
+    const partnerProposals = await prisma.partnerProposal.findMany({
         where: {
-            selectDate: { [Op.ne]: null }
+            contactId: req.params.contactId,
+            selectDate: { NOT: null }
         }
     });
-    const partnerModel = await partnerProposalModels[0].getPartner();
-    const userModel = req.userModel;
-    const closingFormModel = await models.closing_form.create(body, {
-        include: [
-            {
-                model: models.closing_form_update,
-                as: 'updates',
-                include: [{
-                    model: models.closing_form_update_type,
-                    as: 'type',
-                }]
-            }]
+
+    const partnerModel = await prisma.partner.findFirst({
+        where: { id: partnerProposals[0].partnerId }
     });
-    await contactModel.addClosingForm(closingFormModel);
-    await userModel.addClosingForm(closingFormModel);
-    await partnerModel.addClosingForm(closingFormModel);
-    await closingFormModel.reload();
+
+    const closingFormModel = await prisma.closing_form.create({
+        data: body,
+        include: {
+            updates: {
+                include: {
+                    type: true
+                }
+            }
+        }
+    });
+
+    // Assuming you have established relations for closing forms in Prisma schema
+    // You might need to adjust the relation connecting logic depending on your relations in the schema
+    await prisma.contact.update({
+        where: { id: req.params.contactId },
+        data: { closingForms: { connect: { id: closingFormModel.id } } }
+    });
+
+    await prisma.user.update({
+        where: { id: req.userModel.id },
+        data: { closingForms: { connect: { id: closingFormModel.id } } }
+    });
+
+    await prisma.partner.update({
+        where: { id: partnerModel.id },
+        data: { closingForms: { connect: { id: closingFormModel.id } } }
+    });
 
     res.json(closingFormModel);
-}
+};
 
+// createDocument
 exports.createDocument = async function (req, res, next) {
-    const { user, role } = req.token;
-    const body = req.body;
-    const contactId = req.params.contactId;
-    body.contactId = contactId;
-    body.userId = user;
-    const newUpdate = await models.document.create(body);
-    res.json(newUpdate);
-}
+    const body = {
+        ...req.body,
+        contactId: req.params.contactId,
+        userId: req.token.user
+    };
 
+    const newDocument = await prisma.document.create({ data: body });
+    res.json(newDocument);
+};
+
+// createPartnerProposal
 exports.createPartnerProposal = async function (req, res, next) {
-    const contactModel = req.loadedContactModel;
-    const userModel = req.userModel;
     const body = req.body;
-    const newProposalModal = await models.partner_proposal.create(body);
-    await contactModel.addPartnerProposals(newProposalModal)
-    return res.json(newProposalModal);
-}
-exports.selectPartnerProposal = async function (req, res, next) {
-    const contactModel = req.loadedContactModel;
-    const proposalId = req.params.partnerProposalId;
-    const proposals = await contactModel.getPartnerProposals({
-        include: [{
-            model: models.partner,
-            as: 'partner'
-        }]
-    });
-    for (let i = 0; i < proposals.length; i++) {
-        const proposalModel = proposals[i];
-        if (proposalModel.id === parseInt(proposalId)) {
-            proposalModel.selectDate = moment(new Date()).format("YYYY-MM-DD HH:mm:ss");
-        } else {
-            proposalModel.selectDate = null;
-        }
-        await proposalModel.save();
-    }
-    res.json({ rows: proposals, count: proposals.length });
-}
 
-exports.listPartnerProposals = async function (req, res, next) {
-    const contactModel = req.loadedContactModel;
-    const proposals = await contactModel.getPartnerProposals({
-        include: [{
-            model: models.partner,
-            as: 'partner'
-        }]
+    const newProposal = await prisma.partner_proposal.create({ data: body });
+
+    // Assuming the relation between contact and partner proposals is setup in Prisma schema
+    await prisma.contact.update({
+        where: { id: req.params.contactId },
+        data: { partnerProposals: { connect: { id: newProposal.id } } }
     });
+
+    res.json(newProposal);
+};
+
+// selectPartnerProposal
+exports.selectPartnerProposal = async function (req, res, next) {
+    const proposals = await prisma.partnerProposal.findMany({
+        where: { contactId: req.params.contactId },
+        include: { partner: true }
+    });
+
+    for (let proposal of proposals) {
+        await prisma.partnerProposal.update({
+            where: { id: proposal.id },
+            data: {
+                selectDate: proposal.id === parseInt(req.params.partnerProposalId) ?
+                    new Date() : null
+            }
+        });
+    }
+
     res.json({ rows: proposals, count: proposals.length });
-}
+};
+
+// listPartnerProposals
+exports.listPartnerProposals = async function (req, res, next) {
+    const proposals = await prisma.partnerProposal.findMany({
+        where: { contactId: req.params.contactId },
+        include: { partner: true }
+    });
+
+    res.json({ rows: proposals, count: proposals.length });
+};
+
 
 /**
  * Lenders
  */
+// createPartnerLenderProposal
 exports.createPartnerLenderProposal = async function (req, res, next) {
-    const contactModel = req.loadedContactModel;
     const body = req.body;
-    const newProposalModal = await models.lender_proposal.create(body);
-    await contactModel.addLenderProposals(newProposalModal);
-    return res.json(newProposalModal);
-}
-exports.selectLenderProposal = async function (req, res, next) {
-    const contactModel = req.loadedContactModel;
-    const proposalId = req.params.partnerProposalId;
-    const proposals = await contactModel.getLenderProposals({
-        include: [{
-            model: models.lender,
-            as: 'lender'
-        }]
-    });
-    for (let i = 0; i < proposals.length; i++) {
-        const proposalModel = proposals[i];
-        if (proposalModel.id === parseInt(proposalId)) {
-            proposalModel.selectDate = moment(new Date()).format("YYYY-MM-DD HH:mm:ss");
-        } else {
-            proposalModel.selectDate = null;
-        }
-        await proposalModel.save();
-    }
-    res.json({ rows: proposals, count: proposals.length });
-}
 
-exports.listLenderProposals = async function (req, res, next) {
-    const contactModel = req.loadedContactModel;
-    const proposals = await contactModel.getLenderProposals({
-        include: [{
-            model: models.lender,
-            as: 'lender'
-        }]
+    const newProposal = await prisma.lender_proposal.create({ data: body });
+
+    // Assuming the relation between contact and lender proposals is setup in Prisma schema
+    await prisma.contact.update({
+        where: { id: req.params.contactId },
+        data: { lenderProposals: { connect: { id: newProposal.id } } }
     });
+
+    res.json(newProposal);
+};
+
+// selectLenderProposal
+exports.selectLenderProposal = async function (req, res, next) {
+    const proposals = await prisma.lenderProposal.findMany({
+        where: { contactId: req.params.contactId },
+        include: { lender: true }
+    });
+
+    for (let proposal of proposals) {
+        await prisma.lenderProposal.update({
+            where: { id: proposal.id },
+            data: {
+                selectDate: proposal.id === parseInt(req.params.partnerProposalId) ?
+                    new Date() : null
+            }
+        });
+    }
+
     res.json({ rows: proposals, count: proposals.length });
-}
+};
+
+// listLenderProposals
+exports.listLenderProposals = async function (req, res, next) {
+    const proposals = await prisma.lenderProposal.findMany({
+        where: { contactId: req.params.contactId },
+        include: { lender: true }
+    });
+
+    res.json({ rows: proposals, count: proposals.length });
+};
 
 
 /**
  * Update contact
  */
 
+// Update
 exports.update = async function (req, res, next) {
     const { user, role } = req.token;
-    const userModel = req.userModel;
-
-    const contactModel = req.loadedContactModel;
-    if (!contactModel) {
-        return next({ message: 'Mot found' });
-    }
     const body = req.body;
-    const updatedModel = await models.contact.update(body, {
-        include: [
-            {
-                model: models.contact_update, as: 'updates',
-                include: [
-                    { model: models.appointment, as: 'appointment' }
-                ]
-            },
-            { model: models.poc, as: 'pocs' },
-            { model: models.contact_system, as: 'system' },
+    const contactId = req.loadedContactModel.id;
 
-            {
-                model: models.gen_type,
-                as: 'genType',
-                attributes: ['name', 'id']
-            }
-        ],
-        where:
-            {
-                id: contactModel.id
-            }
+    const updatedContact = await prisma.contact.update({
+        where: { id: contactId },
+        data: body,  // Assuming the structure of `body` matches the schema structure
+        include: {
+            updates: {
+                include: {
+                    appointment: true
+                }
+            },
+            pocs: true,
+            system: true,
+            genType: true,
+        }
     });
+
     if (body.system) {
-        body.system.contactId = contactModel.id;
-        await models.contact_system.upsert(body.system);
+        body.system.contactId = contactId;
+        await prisma.contact_system.upsert({
+            where: { id: body.system.id || undefined },
+            create: body.system,
+            update: body.system,
+        });
     }
 
     if (body.pocs) {
-        for (let i = 0; i < body.pocs.length; i++) {
-            const poc = body.pocs[i];
-            poc.contactId = contactModel.id;
-            await models.poc.upsert(poc);
+        for (let poc of body.pocs) {
+            poc.contactId = contactId;
+            await prisma.poc.upsert({
+                where: { id: poc.id || undefined },
+                create: poc,
+                update: poc,
+            });
         }
     }
 
     if (body.updates) {
-        for (let i = 0; i < body.updates.length; i++) {
-            const update = body.updates[i];
-            update.contactId = contactModel.id;
+        for (let update of body.updates) {
+            update.contactId = contactId;
             update.userId = user;
-            const newUpdate = await models.contact_update.create(
-                update, {
-                    include: [
-                        { model: models.appointment, as: 'appointment' }
-                    ]
+            const newUpdate = await prisma.contact_update.create({
+                data: update,
+                include: {
+                    appointment: true
+                }
+            });
+
+            // Assuming that there's an `updateId` field in contact. Update the schema if necessary
+            await prisma.contact.update({
+                where: { id: contactId },
+                data: { updateId: newUpdate.id }
+            });
+
+            if (newUpdate.appointment) {
+                await prisma.contact.update({
+                    where: { id: contactId },
+                    data: { status: 'Opportunity' }  // Assuming there's a status field you want to set to 'Opportunity'
                 });
-            contactModel.updateId = newUpdate.id;
-            const appointment = await newUpdate.getAppointment();
-            if (appointment) {
-                await contactModel.setOpportunity();
-
-
-            } else {
-                await contactModel.save();
             }
         }
     }
 
-    await contactModel.reload();
-
-
-    res.status(201).json(contactModel);
-
-}
-
-exports.requestNewDesign = async function (req, res, next) {
-
-    const userModel = req.userModel;
-
-    const contactId = req.params.contactId;
-    const contactModel = await models.contact.findByPk(contactId);
-
-    await contactModel.requestDesignForUser(userModel.id);
-
-    res.json({ isOkay: true });
-}
-exports.show = async function (req, res, next) {
-    const contactModel = req.loadedContactModel;
-
-
-    const [meters, promotions, groups, roofType, genType, updates, documents, reps, proposals, lenderProposals] = await Promise.all([
-        contactModel.getMeters({ separate: true }),
-        contactModel.getPromotions(),
-        contactModel.getGroups({ separate: true }),
-        contactModel.getRoofType(),
-        contactModel.getGenType(),
-        contactModel.getUpdates({
-            separate: true,
-            order: [['id', 'DESC']],
-            include: [{
-                model: models.user,
-                as: 'user',
-                attributes: ['firstName', 'lastName', 'email', 'primaryPhone', 'picUrl', 'id']
-            }, {
-                model: models.option,
-                as: 'to',
-                attributes: ['name', 'id']
-            }, {
-                model: models.appointment,
-                as: 'appointment',
-                include: [{
-                    attributes: ['name'],
-                    model: models.appointment_type,
-                    as: 'type'
-                }]
-            }]
-        }), contactModel.getDocuments(
-            {
-                separate: true,
-                include: [{
-                    model: models.document_type,
-                    as: 'type'
-                }]
-            }), contactModel.getUsers(
-            {
-                separate: true,
-                include: [{
-                    model: models.role,
-                    as: 'role'
-                }]
-            }),
-        contactModel.getPartnerProposals(
-            {
-                separate: true,
-                include: [{
-                    model: models.partner,
-                    as: 'partner'
-                }]
-            }),
-        contactModel.getLenderProposals(
-            {
-                separate: true,
-                include: [{
-                    model: models.lender,
-                    as: 'lender'
-                }]
-            })
-    ]);
-
-    contactModel.setDataValue('meters', meters);
-    contactModel.setDataValue('promotions', promotions);
-    if (contactModel.busName) {
-        contactModel.setDataValue('pocs', await contactModel.getPocs({ separate: true }));
-    }
-    contactModel.setDataValue('groups', groups);
-    contactModel.setDataValue('genType', genType);
-    contactModel.setDataValue('roofType', roofType);
-    contactModel.setDataValue('updates', updates);
-
-    contactModel.setDataValue('documents', documents);
-
-
-    contactModel.setDataValue('users', reps);
-
-
-    contactModel.setDataValue('partnerProposals', proposals);
-    contactModel.setDataValue('lenderProposals', lenderProposals);
-
-    return res.json(contactModel);
+    res.status(201).json(updatedContact);
 };
 
-exports.listUpdates = async function (req, res) {
-    const contactModel = req.loadedContactModel;
-    const updates = await models.contact_update.findAll({
-        order: [
-            ['id', 'DESC']
-        ],
-        where: {
-            contactId: contactModel.id
-        },
-        attributes: ['toId', 'createdAt', 'note'],
-        include: [{
-            model: models.user,
-            as: 'user',
-            attributes: ['firstName', 'lastName']
-        }, {
-            required: true,
-            model: models.option,
-            as: 'to',
-            attributes: ['name']
-        }, {
-            model: models.appointment,
-            as: 'appointment',
-            attributes: ['fromDate', 'toDate', 'typeId', 'tzOffset', 'timezoneOffset', 'startDate', 'endDate', 'timezone'],
-            include: [{
-                model: models.appointment_type,
-                as: 'type',
-                attributes: ['name']
-            }]
-        }]
+// Request New Design
+exports.requestNewDesign = async function (req, res, next) {
+    const contactId = req.params.contactId;
+    
+    // The function `requestDesignForUser` is not a standard ORM method, it might be specific to your old model. 
+    // So, you'd need to rewrite it with equivalent Prisma operations or a custom function.
+    // Here's a placeholder:
+    await customFunctionToRequestDesignForUser(contactId, req.userModel.id);
+
+    res.json({ isOkay: true });
+};
+
+// You'll need to define customFunctionToRequestDesignForUser or replace it with the equivalent logic you have.
+
+// Show
+exports.show = async function (req, res, next) {
+    const contactId = req.loadedContactModel.id;
+
+    const contact = await prisma.contact.findUnique({
+        where: { id: contactId },
+        include: {
+            meters: true,
+            promotions: true,
+            groups: true,
+            roofType: true,
+            genType: true,
+            updates: {
+                include: {
+                    user: true,
+                    to: true,
+                    appointment: {
+                        include: {
+                            type: true
+                        }
+                    }
+                }
+            },
+            documents: {
+                include: {
+                    type: true
+                }
+            },
+            users: {
+                include: {
+                    role: true
+                }
+            },
+            partnerProposals: {
+                include: {
+                    partner: true
+                }
+            },
+            lenderProposals: {
+                include: {
+                    lender: true
+                }
+            }
+        }
     });
+
+    if (contact.busName) {
+        contact.pocs = await prisma.poc.findMany({
+            where: { contactId: contact.id }
+        });
+    }
+
+    res.json(contact);
+};
+
+// List Updates
+exports.listUpdates = async function (req, res) {
+    const contactId = req.loadedContactModel.id;
+
+    const updates = await prisma.contact_update.findMany({
+        where: { contactId },
+        include: {
+            user: {
+                select: {
+                    firstName: true,
+                    lastName: true
+                }
+            },
+            to: {
+                select: {
+                    name: true
+                }
+            },
+            appointment: {
+                include: {
+                    type: {
+                        select: {
+                            name: true
+                        }
+                    }
+                },
+                select: {
+                    fromDate: true,
+                    toDate: true,
+                    typeId: true,
+                    tzOffset: true,
+                    timezoneOffset: true,
+                    startDate: true,
+                    endDate: true,
+                    timezone: true
+                }
+            }
+        }
+    });
+
     const newData = updates.map((update) => {
         if (update.appointment && update.appointment.tzOffset) {
-            update.appointment.startDate = moment(update.appointment.fromDate).utcOffset(update.appointment.tzOffset, true).format()
-            update.appointment.endDate = moment(update.appointment.toDate).utcOffset(update.appointment.tzOffset, true).format()
+            update.appointment.startDate = moment(update.appointment.fromDate).utcOffset(update.appointment.tzOffset, true).format();
+            update.appointment.endDate = moment(update.appointment.toDate).utcOffset(update.appointment.tzOffset, true).format();
         }
 
         if (update.appointment && update.appointment.timezoneOffset) {
-            update.appointment.startDate = moment(update.appointment.startDate).utcOffset(update.appointment.timezoneOffset, true).format()
-            update.appointment.endDate = moment(update.appointment.endDate).utcOffset(update.appointment.timezoneOffset, true).format()
+            update.appointment.startDate = moment(update.appointment.startDate).utcOffset(update.appointment.timezoneOffset, true).format();
+            update.appointment.endDate = moment(update.appointment.endDate).utcOffset(update.appointment.timezoneOffset, true).format();
         }
         return update;
-    })
+    });
+
     res.status(200).json(newData);
 };
+
 
 /**
  * Delete an contact
  */
 
 exports.destroy = async function (req, res) {
-    const id = req.params.contactId;
+    const id = +req.params.contactId;
     let r;
+
     if (req.userModel) {
-        r = await req.userModel.removeContact(id);
+        // Assuming userModel has a relation with contact and there is a function called removeContact
+        // Prisma does not have a built-in remove method for relationships, you need to manually unset the relation
+        r = await prisma.user.update({
+            where: { id: req.userModel.id },
+            data: { contacts: { disconnect: { id } } }
+        });
     } else {
-        r = await models.contact.destroy({
-            where: {
-                id
-            }
-        })
+        r = await prisma.contact.delete({
+            where: { id }
+        });
     }
+
     res.json(r);
-}
+};
+
 
 
 
 
 // contact/contactId/appointments
 exports.listClosingForm = async function (req, res, next) {
-    const contactId = req.params.contactId;
-    const closingForm = await models.closing_form.findAndCountAll({
-        order: [['id', 'DESC']],
-        where: {
-            contactId
-        },
-        include: [
-            {
-                model: models.closing_form_update,
-                as: 'updates',
-                attributes: ['createdAt', 'note'],
-                include: [{
-                    model: models.closing_form_update_type,
-                    as: 'type',
-                    attributes: ['name']
-                }]
+    const contactId = +req.params.contactId;
+    const closingForm = await prisma.closing_form.findMany({
+        where: { contactId },
+        orderBy: { id: 'desc' },
+        include: {
+            updates: {
+                select: {
+                    createdAt: true,
+                    note: true,
+                    type: {
+                        select: {
+                            name: true
+                        }
+                    }
+                }
             },
-            {
-                model: models.contact,
-                as: 'contact',
-                include: [{
-                    model: models.partner_proposal,
-                    as: 'partnerProposals',
-                    attributes: ['partnerId'],
-                    include: [{
-                        model: models.partner,
-                        as: 'partner',
-                        attributes: ['name']
-                    }]
-                }]
+            contact: {
+                select: {
+                    partnerProposals: {
+                        select: {
+                            partnerId: true,
+                            partner: {
+                                select: {
+                                    name: true
+                                }
+                            }
+                        }
+                    }
+                }
             }
-        ]
+        }
     });
     res.status(200).json(closingForm);
-}
+};
+
 
 
 
 // contact/contactId/appointments
 exports.listContactAppointments = async function (req, res, next) {
-    const contactId = req.params.contactId;
-    const contacts = await models.contact.findByPk(contactId, {
-        include: [{
-            model: models.appointment,
-            as: 'appointments' // specifies how we want to be able to access our joined rows on the returned data
-        }],
-        order: [
-            ['appointments', 'id', 'DESC']
-        ]
+    const contactId = +req.params.contactId;
+    const contacts = await prisma.contact.findUnique({
+        where: { id: contactId },
+        include: {
+            appointments: {
+                orderBy: { id: 'desc' }
+            }
+        }
     });
     res.status(200).json(contacts);
-}
+};
+
 
 
 
 
 exports.createAdder = async function (req, res, next) {
-    const loadedContactModel = req.loadedContactModel;
-    const userModel = req.userModel;
     const object = req.body;
 
-    const newModel = await models.adder.create(object);
-    await loadedContactModel.addAdder(newModel);
-    return res.json(newModel);
-}
+    const newModel = await prisma.adder.create({
+        data: object
+    });
+    // Assuming loadedContactModel has a relation with adder and there is a function called addAdder
+    await prisma.contact.update({
+        where: { id: req.loadedContactModel.id },
+        data: { adders: { connect: { id: newModel.id } } }
+    });
+    res.json(newModel);
+};
+
 exports.deleteAdder = async function (req, res, next) {
-    const id = req.params.adderId;
-    const loadedContactModel = req.loadedContactModel;
-    const userModel = req.userModel;
-    const [model] = await loadedContactModel.getAdders({where:{id}});
-    if(model){
-        const response = await model.destroy();
-        return res.json(response);
-    }else{
-        return res.json({message:'Not Found'});
+    const id = +req.params.adderId;
+
+    const model = await prisma.adder.findUnique({
+        where: { id }
+    });
+    if (model) {
+        const response = await prisma.adder.delete({ where: { id } });
+        res.json(response);
+    } else {
+        res.json({ message: 'Not Found' });
     }
-}
+};
 
 exports.listAdders = async function (req, res, next) {
-    const contactId = req.params.contactId;
-    const query = {
-        where: {
-            contactId: contactId,
-        },
-        attributes: ['id', 'name', 'value', 'quantity']
-    };
+    const contactId = +req.params.contactId;
 
-    const proposals = await models.adder.findAll(query);
+    const proposals = await prisma.adder.findMany({
+        where: { contactId },
+        select: ['id', 'name', 'value', 'quantity']
+    });
     res.status(200).json(proposals);
-}
+};
 
 
 exports.createMeter = async function (req, res, next) {
     try {
         const body = req.body;
-        const loadedContactModel = req.loadedContactModel;
-        const newMeterModel = await models.meter.create(body);
-        await loadedContactModel.addMeter(newMeterModel);
-        await newMeterModel.reload();
+        const newMeterModel = await prisma.meter.create({
+            data: body
+        });
+        await prisma.contact.update({
+            where: { id: req.loadedContactModel.id },
+            data: { meters: { connect: { id: newMeterModel.id } } }
+        });
         res.json(newMeterModel);
     } catch (e) {
         console.error(e);
         next(e);
     }
-}
+};
+
 exports.updateMeter = async function (req, res, next) {
     try {
         const body = req.body;
-        const loadedMeterModel = req.loadedMeterModel;
-        await loadedMeterModel.update(body);
-        await loadedMeterModel.reload();
-        res.json(loadedMeterModel);
+        const updatedMeterModel = await prisma.meter.update({
+            where: { id: req.loadedMeterModel.id },
+            data: body
+        });
+        res.json(updatedMeterModel);
     } catch (e) {
         console.error(e);
         next(e);
     }
-}
+};
+
 
 
 exports.deleteMeter = async function (req, res, next) {
     try {
-        const loadedMeterModel = req.loadedMeterModel;
-        const isDestroyed = await models.meter.destroy({
-            where: {
-                id: loadedMeterModel.id
-            }
+        const deletedMeter = await prisma.meter.delete({
+            where: { id: req.loadedMeterModel.id }
         });
-        res.json(isDestroyed);
+        res.json(!!deletedMeter);
     } catch (e) {
         console.error(e);
         next(e);
     }
-}
+};
+
 
 exports.listIncentives = async function (req, res, next) {
-
     try {
-        const loadedContactModel = req.loadedContactModel;
-        const state = loadedContactModel.state;
-        const list = await Services.SolarIncentives.getIncentives(state)
+        const state = req.loadedContactModel.state;
+        const list = await Services.SolarIncentives.getIncentives(state);
         res.json(list);
     } catch (e) {
         console.error(e);
         next(e);
     }
+};
 
-}
 
 
 exports.createNote = async function (req, res, next) {
-    const { user, role } = req.token;
-    const contactId = req.params.contactId;
-    const contents = req.body.contents;
-    const newNote = await models.note.create({
-        userId: user,
-        contents: contents
-    });
-    const contact = await models.contact.findByPk(contactId);
-    await contact.addNote(newNote);
-    await contact.save();
-    const notes = await contact.getNotes({
-        include: [{
-            model: models.user,
-            as: 'user',
-            attributes: ['firstName', 'lastName'],
-        }],
-        order: [
-            ['id', 'desc']
-        ]
-    });
-    res.status(200).json(notes);
-}
+    try {
+        const { user } = req.token;
+        const contents = req.body.contents;
+
+        const newNote = await prisma.note.create({
+            data: {
+                userId: user,
+                contents: contents,
+                contact: {
+                    connect: { id: +req.params.contactId }
+                }
+            }
+        });
+
+        const notes = await prisma.note.findMany({
+            where: { contactId: +req.params.contactId },
+            include: {
+                user: {
+                    select: {
+                        firstName: true,
+                        lastName: true
+                    }
+                }
+            },
+            orderBy: { id: 'desc' }
+        });
+
+        res.status(200).json(notes);
+    } catch (e) {
+        console.error(e);
+        next(e);
+    }
+};
+
 
 exports.createComments = async function (req, res, next) {
-    const { user, role } = req.token;
-    const contactId = req.params.contactId;
-    const comment = req.body.comment;
-    const newComment = await models.contact_comment.create({
-        userId: user,
-        comment: comment
-    });
-    const contact = await models.contact.findByPk(contactId);
-    await contact.addComment(newComment);
-    await contact.save();
-    const comments = await contact.getComments({
-        include: [{
-            model: models.user,
-            as: 'user',
-            attributes: ['firstName', 'lastName', 'picUrl'],
-            include: [{
-                model: models.role,
-                as: 'role',
-                attributes: ['name']
-            }]
-        }],
-        order: [
-            ['id', 'desc']
-        ]
-    });
-    res.status(200).json(comments);
-}
+    try {
+        const { user } = req.token;
+        const comment = req.body.comment;
+
+        const newComment = await prisma.contact_comment.create({
+            data: {
+                userId: user,
+                comment: comment,
+                contact: {
+                    connect: { id: +req.params.contactId }
+                }
+            }
+        });
+
+        const comments = await prisma.contact_comment.findMany({
+            where: { contactId: +req.params.contactId },
+            include: {
+                user: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        picUrl: true,
+                        role: {
+                            select: { name: true }
+                        }
+                    }
+                }
+            },
+            orderBy: { id: 'desc' }
+        });
+
+        res.status(200).json(comments);
+    } catch (e) {
+        console.error(e);
+        next(e);
+    }
+};
 
 exports.deletePromotion = async function (req, res, next) {
-    const { user, role } = req.token;
-    const contactId = req.params.contactId;
-    const promotionId = req.params.promotionId;
-    const loadedContactModel = req.loadedContactModel;
-    const isDestroyed = await models.promotion.destroy({
-        where: {
-            contactId: contactId,
-            id: promotionId
-        }
-    });
-    res.status(200).json(isDestroyed);
-}
+    try {
+        const deletedPromotion = await prisma.promotion.delete({
+            where: {
+                id: +req.params.promotionId
+            }
+        });
+        res.status(200).json(!!deletedPromotion);
+    } catch (e) {
+        console.error(e);
+        next(e);
+    }
+};
+
 
 exports.createPromotion = async function (req, res, next) {
-    const { user, role } = req.token;
-    const contactId = req.params.contactId;
-    const loadedContactModel = req.loadedContactModel;
-    const userModel = req.userModel;
+    try {
+        const promotion = req.body;
 
-    const promotion = req.body;
-    const newModel = await models.promotion.create(promotion);
-    await loadedContactModel.addPromotion(newModel);
-    await userModel.addPromotion(newModel);
+        const newPromotion = await prisma.promotion.create({
+            data: {
+                ...promotion,
+                contact: {
+                    connect: { id: +req.params.contactId }
+                },
+                user: {  // assuming a relationship between promotion and user
+                    connect: { id: req.userModel.id }
+                }
+            }
+        });
 
-    res.status(200).json(newModel);
-}
+        res.status(200).json(newPromotion);
+    } catch (e) {
+        console.error(e);
+        next(e);
+    }
+};
+
 
 exports.listPromotions = async function (req, res, next) {
-    const { user, role } = req.token;
-    const contactId = req.params.contactId;
-    const contact = await models.contact.findByPk(contactId);
-    const loadedContactModel = req.loadedContactModel;
-    const promotions = await loadedContactModel.getPromotions();
-
-    res.status(200).json(promotions);
-}
+    try {
+        const promotions = await prisma.promotion.findMany({
+            where: { contactId: +req.params.contactId }
+        });
+        res.status(200).json(promotions);
+    } catch (e) {
+        console.error(e);
+        next(e);
+    }
+};
 
 
 
 exports.listNotes = async function (req, res, next) {
-    const { user, role } = req.token;
-    const contactId = req.params.contactId;
-    const contact = await models.contact.findByPk(contactId);
-    const notes = await contact.getNotes({
-        include: [{
-            model: models.user,
-            as: 'user',
-            attributes: ['firstName', 'lastName'],
-        }],
-        order: [
-            ['id', 'desc']
-        ]
-    });
-    res.status(200).json(notes);
-}
+    try {
+        const notes = await prisma.note.findMany({
+            where: { contactId: +req.params.contactId },
+            include: { user: { select: { firstName: true, lastName: true } } },
+            orderBy: { id: 'desc' }
+        });
+        res.status(200).json(notes);
+    } catch (e) {
+        console.error(e);
+        next(e);
+    }
+};
+
 
 exports.listComments = async function (req, res, next) {
-    const { user, role } = req.token;
-    const contactId = req.params.contactId;
-    const contact = await models.contact.findByPk(contactId);
-    const comment = await contact.getComments({
-        include: [{
-            model: models.user,
-            as: 'user',
-            attributes: ['firstName', 'lastName', 'picUrl'],
-            include: [{
-                model: models.role,
-                as: 'role',
-                attributes: ['name']
-            }]
-        }],
-        order: [
-            ['id', 'desc']
-        ]
-    });
-    res.status(200).json(comment);
-}
+    try {
+        const comments = await prisma.contact_comment.findMany({
+            where: { contactId: +req.params.contactId },
+            include: {
+                user: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        picUrl: true,
+                        role: { select: { name: true } }
+                    }
+                }
+            },
+            orderBy: { id: 'desc' }
+        });
+        res.status(200).json(comments);
+    } catch (e) {
+        console.error(e);
+        next(e);
+    }
+};
+
 
 
 exports.listUsers = async function (req, res, next) {
-    const { isActive } = req.query;
-    const contactModel = req.loadedContactModel;
-    const where = {};
-    if (isActive) {
-        where.isActive = isActive === false ? isActive : true;
+    try {
+        const isActive = req.query.isActive;
+        let where = {};
+
+        if (isActive !== undefined) {
+            where.isActive = isActive === 'false' ? false : true;
+        }
+
+        const users = await prisma.user.findMany({
+            where: where,
+            select: {
+                firstName: true,
+                lastName: true,
+                id: true,
+                lastLoginDate: true,
+                createdAt: true,
+                email: true,
+                primaryPhone: true,
+                picUrl: true,
+                role: { select: { name: true } }
+            }
+        });
+        
+        const count = await prisma.user.count({ where: where });
+
+        res.status(200).json({ rows: users, count: count });
+    } catch (e) {
+        console.error(e);
+        next(e);
     }
+};
 
-    // tslint:disable-next-line:no-shadowed-variable
-    const query = {
-        where,
-        attributes: ['firstName', 'lastName', 'id', 'lastLoginDate', 'createdAt', 'email', 'primaryPhone', 'picUrl'],
-        include: [{
-            model: models.role,
-            as: 'role',
-            attributes: ['name']
-        }]
-    };
-    const rows = await contactModel.getUsers(query);
-    const count = await contactModel.countUsers(query);
-
-    res.status(200).json({ rows, count });
-}
 
 exports.listLenderProposals = async function (req, res, next) {
-    const contactId = req.params.contactId;
-    const query = {
-        where: {
-            contactId: contactId,
-        },
-        attributes: ['id', 'loanAmount', 'systemPrice', 'rate', 'months', 'systemSize'],
-        include: [{
-            model: models.lender,
-            as: 'lender',
-            attributes: ['name', 'id']
-        }]
-    };
+    try {
+        const proposals = await prisma.lender_proposal.findMany({
+            where: { contactId: +req.params.contactId },
+            select: {
+                id: true,
+                loanAmount: true,
+                systemPrice: true,
+                rate: true,
+                months: true,
+                systemSize: true,
+                lender: { select: { name: true, id: true } }
+            }
+        });
+        res.status(200).json(proposals);
+    } catch (e) {
+        console.error(e);
+        next(e);
+    }
+};
 
-    const proposals = await models.lender_proposal.findAll(query);
-    res.status(200).json(proposals);
-}
 
 
 exports.listDocuments = async function (req, res, next) {
-    const contactId = req.params.contactId;
-    const where = req.params.filter;
-    const query = {
-        where: {
-            id: contactId,
-        },
-        attributes: ['id'],
-        include: [{
-            model: models.document,
-            as: 'documents',
-            attributes: ['originalName', 'id', 'typeId', 'createdAt', 'location'],
-            include: [{
-                attributes: ['name', 'slug'],
-                model: models.document_type,
-                as: 'type'
-            }]
-        }]
-    };
-    const contacts = await models.contact.findOne(query);
-    res.status(200).json(contacts);
-}
+    try {
+        const contactId = req.params.contactId;
+        const contacts = await prisma.contact.findUnique({
+            where: { id: +contactId },
+            select: {
+                id: true,
+                documents: {
+                    select: {
+                        originalName: true,
+                        id: true,
+                        typeId: true,
+                        createdAt: true,
+                        location: true,
+                        type: {
+                            select: {
+                                name: true,
+                                slug: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        res.status(200).json(contacts);
+    } catch (e) {
+        console.error(e);
+        next(e);
+    }
+};
 
-exports.showContactClosingForm = async function (req, res, next) {
-    const contactId = req.params.contactId;
-    const where = req.params.filter;
-    const query = {
-        where: {
-            id: contactId,
-        },
-        attributes: ['id'],
-        include: [{
-            model: models.document,
-            as: 'documents',
-            attributes: ['originalName', 'id', 'typeId', 'createdAt'],
-            include: [{
-                attributes: ['name', 'slug'],
-                model: models.document_type,
-                as: 'type'
-            }]
-        }]
-    };
 
-    const contacts = await models.contact.findOne(query);
-    res.status(200).json(contacts);
-}
+// Given the code seems identical to the above, 
+// I'm not sure why you'd want a duplicate. Here's the conversion anyway.
+exports.showContactClosingForm = exports.listDocuments;
+
 
 exports.deletePoc = async function (req, res, next) {
-    const { user, role } = req.token;
-
-    const { contactId, pocId } = req.params;
-
-    const contactModel = await models.contact.findByPk(contactId);
-    if (!contactModel) {
-        return next({ message: 'Contact does not exist' });
-    }
-    const pocModel = await models.poc.findOne({
-        where: {
-            id: pocId,
-            contactId: contactId
+    try {
+        const { contactId, pocId } = req.params;
+        const contactExists = await prisma.contact.findUnique({ where: { id: +contactId } });
+        if (!contactExists) {
+            return next({ message: 'Contact does not exist' });
         }
-    });
-    if (!pocModel) {
-        return next({ message: 'poc does not exist' });
+        const pocExists = await prisma.poc.findUnique({ where: { id: +pocId } });
+        if (!pocExists) {
+            return next({ message: 'poc does not exist' });
+        }
+        await prisma.poc.delete({ where: { id: +pocId } });
+        res.json({ message: 'Deleted successful' });
+    } catch (e) {
+        console.error(e);
+        next(e);
     }
-    await pocModel.destroy();
-    return res.json({ message: 'Deleted successful' });
-
-}
+};
 
 exports.delete = async function (req, res, next) {
-    const { user, role } = req.token;
-    if (role.toLowerCase() !== 'admin') {
-        return next({ message: 'Not authorized' });
-    }
-    const contactId = req.params.contactId;
-
-    const contact = await models.contact.findByPk(contactId);
-    if (!contact) {
-        return next({ message: 'Contact does not exist' });
-    }
-    const documents = contact.getDocuments();
-    if (documents && documents.length > 0) {
-        for (let i = 0; i < documents.length; i++) {
-            try {
-                const documentModel = documents[i];
-                await Services.Document.delete({
-                    version: documentModel.versionId,
-                    key: documentModel.key
-                });
-                await documentModel.destroy();
-            } catch (e) {
-                console.error(e);
-            }
-
-        }
-    }
     try {
-        await contact.destroy()
+        const { user, role } = req.token;
+        if (role.toLowerCase() !== 'admin') {
+            return next({ message: 'Not authorized' });
+        }
+        const contactId = req.params.contactId;
+        const contact = await prisma.contact.findUnique({ where: { id: +contactId }, include: { documents: true } });
+        
+        if (!contact) {
+            return next({ message: 'Contact does not exist' });
+        }
+
+        if (contact.documents && contact.documents.length > 0) {
+            for (let documentModel of contact.documents) {
+                try {
+                    // Assuming Services.Document.delete is some external function, we'll leave it as is.
+                    await Services.Document.delete({
+                        version: documentModel.versionId,
+                        key: documentModel.key
+                    });
+                    await prisma.document.delete({ where: { id: documentModel.id } });
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+
+        await prisma.contact.delete({ where: { id: +contactId } });
         res.status(200).json({ deleted: true });
     } catch (e) {
         return next(e);
     }
-}
+};
 
