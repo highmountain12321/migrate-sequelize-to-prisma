@@ -1,9 +1,8 @@
 const { wrap: async } = require('co');
 const _ = require('lodash');
-const { Op, QueryTypes, Sequelize } = require("sequelize");
-const { models, query } = require('../../sequelize');
 const moment = require("moment");
 const { Services } = require('../services');
+const prisma = require('../lib/prisma')
 
 
 exports.createContact = async function (req, res, next) {

@@ -1,5 +1,4 @@
 const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
 
 const _ = require('lodash');
 const {Services} = require("../services");

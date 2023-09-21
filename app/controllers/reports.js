@@ -2,14 +2,14 @@
  * Module dependencies.
  */
 
+
 const { wrap: async } = require('co');
 const only = require('only');
 const moment = require('moment');
 const assign = Object.assign;
 const _ = require('lodash');
-const sequalize = require('../../sequelize');
-const { models } = require("../../sequelize");
-const { Op } = require("sequelize");
+
+const prisma = require('../lib/prisma')
 
 const statusReportForTeam = async (start, end, teamId) => {
 	const userGroup = await prisma.user_group.findUnique({

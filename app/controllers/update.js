@@ -4,6 +4,7 @@
  * Module dependencies.
  */
 
+
 const { wrap: async } = require('co');
 const only = require('only');
 const moment = require('moment');
@@ -12,6 +13,7 @@ const _ = require('lodash');
 const { models } = require('../../sequelize');
 const { Services } = require('../services');
 const jwt = require('jsonwebtoken');
+const prisma = require('../lib/prisma')
 
 
 exports.list = async function(req, res,next) {

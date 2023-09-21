@@ -1,5 +1,4 @@
 const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
 const { Services } = require('../services');
 const jwt = require('jsonwebtoken');
 

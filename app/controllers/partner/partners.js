@@ -6,7 +6,6 @@
 
 const { wrap: async } = require('co');
 const _ = require('lodash');
-const { models } = require('../../../sequelize');
 const prisma = require('../../lib/prisma')
 
 exports.listByZone = async function (req, res) {

@@ -5,13 +5,10 @@
 
 const { wrap: async } = require('co');
 const _ = require('lodash');
-const {Op, QueryTypes} = require("sequelize");
-
-const { models, query } = require('../../sequelize');
 
 const moment = require("moment");
 const { Services } = require('../services');
-const sequalize = require("../../sequelize");
+const prisma = require('../lib/prisma');
 
 
 

@@ -1,16 +1,14 @@
 const admin = require("firebase-admin");
 
-const {Op, cast, col, where, dialect} = require("sequelize");
 /**
  * Module dependencies.
  */
 
-const { wrap: async } = require('co');
-const { models } = require('../../sequelize');
 const moment = require('moment');
 const {Services} = require("../services");
 const jwt = require('jsonwebtoken');
 const _ = require("lodash");
+const prisma = require('../lib/prisma')
 
 exports.self = async function (req, res) {
   const userModel = req.userModel;
@@ -398,7 +396,7 @@ exports.patchContact = async function(req, res, next) {
     if (addContactId) {
       const contactModel = await prisma.contact.findUnique({ where: { id: addContactId } }); // Assuming you have a Contact model in Prisma
     
-      const latestAppointments = await models.appointment.findMany({
+      const latestAppointments = await prisma.appointment.findMany({
         where: {
           contactId: contactModel.id
         },
@@ -840,14 +838,15 @@ exports.listContacts = async function (req, res, next) {
   }
 
   if (statusFilter) {
-    query.include.push({
+    query.include = {
+      ...query.include,
       updates: {
         where: {
-          [Op.or]: Services.Search.statusFilter(statusFilter)
+          OR: Services.Search.statusFilter(statusFilter)
         },
         take: 1
       }
-    });
+    };
   }
 
   const rows = await prisma.user.findUnique({

@@ -6,10 +6,9 @@
 
 const { wrap: async } = require('co');
 const _ = require('lodash');
-const { models } = require('../../sequelize');
-const {QueryTypes,Op} = require("sequelize");
-const Sequelize = require('sequelize');
+
 const {Services} = require("../services");
+const prisma = require('../lib/prisma');
 
 exports.listClosingForms = async function(req, res, next) {
     const isActive = req.query.isActive === 'true'; // Parse from query
